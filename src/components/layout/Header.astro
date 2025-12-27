@@ -1,0 +1,75 @@
+---
+import AuthButton from "../auth/AuthButton.tsx";
+
+const isHomePage = Astro.url.pathname === "/";
+---
+
+<header class="w-full">
+  <div
+    class="max-w-[1200px] mx-auto px-4 py-4 flex items-center justify-between"
+  >
+    <a href="/" class="flex items-center gap-2">
+      <!-- Mock logo -->
+      <div class="text-rose-500 font-black text-xl">◯</div>
+      <span class="font-semibold">airbnb</span>
+    </a>
+    <nav class="hidden md:flex items-center gap-8 text-sm text-slate-700">
+      <a href="#" class="flex items-center gap-2">
+        <span>Homes</span>
+        <span class="block h-[2px] w-8 bg-slate-900 translate-y-[9px]"></span>
+      </a>
+      <a href="#" class="flex items-center gap-2"
+        >Experiences <span
+          class="text-[10px] bg-slate-900 text-white px-1 rounded">NEW</span
+        ></a
+      >
+      <a href="#" class="flex items-center gap-2"
+        >Services <span class="text-[10px] bg-slate-900 text-white px-1 rounded"
+          >NEW</span
+        ></a
+      >
+    </nav>
+    <div class="flex items-center gap-2">
+      <a
+        href="/listing/create"
+        class="hidden md:block text-sm rounded-full border px-3 py-1.5 hover:bg-slate-50"
+        >Create listing</a
+      >
+      <a href="#" class="hidden md:block text-sm">Become a host</a>
+      <button
+        class="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center"
+        >🌐</button
+      >
+      <!-- Auth button React island -->
+      <AuthButton client:load />
+    </div>
+  </div>
+  <!-- Search bar - only show on homepage -->
+  {
+    isHomePage && (
+      <div class="px-4 pb-4">
+        <div class="max-w-[1200px] mx-auto">
+          <div class="mx-auto rounded-full bg-white shadow-[0_10px_25px_-10px_rgba(0,0,0,0.25)] border border-slate-200 overflow-hidden flex items-stretch max-w-[840px]">
+            <div class="flex-1 px-5 py-3">
+              <div class="text-[12px] text-slate-700">Where</div>
+              <div class="text-[13px] text-slate-400">Search destinations</div>
+            </div>
+            <div class="w-px bg-slate-200 my-2" />
+            <div class="flex-1 px-5 py-3 hidden sm:block">
+              <div class="text-[12px] text-slate-700">When</div>
+              <div class="text-[13px] text-slate-400">Add dates</div>
+            </div>
+            <div class="w-px bg-slate-200 my-2 hidden sm:block" />
+            <div class="flex-1 px-5 py-3">
+              <div class="text-[12px] text-slate-700">Who</div>
+              <div class="text-[13px] text-slate-400">Add guests</div>
+            </div>
+            <button class="m-1 mr-2 my-2 h-10 w-10 rounded-full bg-rose-500 text-white flex items-center justify-center">
+              🔍
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+</header>

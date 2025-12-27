@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1762503012269,
+      "tag": "0000_overrated_spiral",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1762509057266,
+      "tag": "0001_living_shooting_star",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1762514872497,
+      "tag": "0002_past_otto_octavius",
+      "breakpoints": true
+    }
+  ]
+}

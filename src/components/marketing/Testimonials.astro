@@ -1,0 +1,23 @@
+---
+---
+<section class="bg-slate-50">
+	<div class="max-w-[1200px] mx-auto px-4 py-10 text-center">
+		<h3 class="text-[18px] font-medium">What our travelers say</h3>
+		<div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+			{[1,2,3].map((i) => (
+				<div class="rounded-2xl bg-white border p-4">
+					<div class="flex items-center gap-3">
+						<div class="h-10 w-10 rounded-full bg-slate-200"></div>
+						<div>
+							<div class="text-sm font-medium">Traveler {i}</div>
+							<div class="text-[12px] text-slate-500">Joined 2 trips</div>
+						</div>
+					</div>
+					<p class="text-sm text-slate-700 mt-3">“Amazing group energy and well-planned days. I met great friends and saved money.”</p>
+				</div>
+			))}
+		</div>
+	</div>
+</section>
+
+

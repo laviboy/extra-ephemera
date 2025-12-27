@@ -1,0 +1,20 @@
+---
+---
+<section class="px-4 py-10">
+	<div class="max-w-[1200px] mx-auto">
+		<h3 class="text-[18px] font-medium mb-4">Insights & Updates</h3>
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+			{["Budget hacks for group trips","Navigating visas as a team","Packing lists by climate"].map((t, i) => (
+				<article class="rounded-2xl border overflow-hidden bg-white">
+					<img src={`https://picsum.photos/seed/insight-${i}/600/360`} class="w-full h-auto object-cover" alt={t} />
+					<div class="p-4">
+						<h4 class="text-[16px] font-medium">{t}</h4>
+						<p class="text-sm text-slate-600 mt-1">Short read with practical tips for your next group adventure.</p>
+					</div>
+				</article>
+			))}
+		</div>
+	</div>
+</section>
+
+

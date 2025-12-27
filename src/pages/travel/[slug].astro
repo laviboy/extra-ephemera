@@ -1,0 +1,41 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { allGroups } from '../../data/travelGroups';
+
+export async function getStaticPaths() {
+  return allGroups.map((g) => ({ params: { slug: g.slug } }));
+}
+
+const { slug } = Astro.params;
+const group = allGroups.find((g) => g.slug === slug);
+
+if (!group) {
+  return Astro.redirect('/');
+}
+---
+
+<Layout>
+	<main style="max-width: 960px; margin: 0 auto; padding: 24px 16px;">
+		<a href="/" style="text-decoration: none; color: #2563eb;">← Back to groups</a>
+		<h1 style="margin: 12px 0 8px;">{group.title}</h1>
+		<p style="margin: 0; color: #4b5563;">{group.destination}</p>
+		<p style="margin: 6px 0 16px; color: #6b7280;">
+			{new Date(group.startDate).toLocaleDateString()} – {new Date(group.endDate).toLocaleDateString()} · ${group.priceUsd}
+		</p>
+		<div style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #fff;">
+			<img src={group.coverUrl} alt={group.title} style="width: 100%; height: auto; display: block;" />
+		</div>
+		<p style="margin: 16px 0 8px;">{group.shortDescription}</p>
+		<ul style="margin: 0; padding: 0; list-style: none; display: flex; gap: 8px; flexWrap: wrap;">
+			{group.tags.map((t) => (
+				<li style="background: #f3f4f6; padding: 4px 8px; border-radius: 999px; font-size: 12px;" title={t}>{t}</li>
+			))}
+		</ul>
+		<div style="margin-top: 16px; display: flex; gap: 12px; alignItems: center;">
+			<strong>{group.seatsLeft} seats left</strong>
+			<a href="#" style="text-decoration: none; background: #111827; color: #fff; padding: 10px 14px; border-radius: 8px;">Request to join</a>
+		</div>
+	</main>
+</Layout>
+
+

@@ -1,11 +1,36 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+import Layout from "../layouts/Layout.astro";
+import Hero from "../components/marketing/Hero.astro";
+import FeaturedGroups from "../components/marketing/FeaturedGroups.tsx";
+import SplitFeatures from "../components/marketing/SplitFeatures.astro";
+import LocationsStrip from "../components/marketing/LocationsStrip.astro";
+import FreshOnMarket from "../components/marketing/FreshOnMarket.tsx";
+import Testimonials from "../components/marketing/Testimonials.astro";
+import StatsBar from "../components/marketing/StatsBar.astro";
+import Insights from "../components/marketing/Insights.astro";
+import CTA from "../components/marketing/CTA.astro";
+import {
+  trendingGroups,
+  lastMinuteGroups,
+  budgetFriendlyGroups,
+  allGroups,
+} from "../data/travelGroups";
+import FreshListings from "../components/marketing/FreshListings";
 ---
 
 <Layout>
-	<Welcome />
+  <Hero />
+  <FeaturedGroups
+    id="featured"
+    title="Top picks this week"
+    groups={trendingGroups}
+  />
+  <SplitFeatures />
+  <LocationsStrip />
+  <FreshOnMarket title="Fresh on the market" groups={allGroups} />
+  <FreshListings client:only="react" title="Latest listings" />
+  <Testimonials />
+  <StatsBar />
+  <Insights />
+  <CTA />
 </Layout>

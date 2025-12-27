@@ -1,0 +1,16 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import CreateListingForm from '../../components/listings/CreateListingForm.tsx';
+---
+
+<Layout>
+	<main class="max-w-[960px] mx-auto px-4 py-8">
+		<h1 class="text-[24px] font-semibold">Create a new listing</h1>
+		<p class="text-slate-600 text-sm mt-1">Fill in the details below. This is a mock form; on submit we log the payload.</p>
+		<div class="mt-6 rounded-xl border border-slate-200 p-5 bg-white">
+			<CreateListingForm client:idle />
+		</div>
+	</main>
+</Layout>
+
+

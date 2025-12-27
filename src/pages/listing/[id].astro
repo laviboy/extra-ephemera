@@ -1,0 +1,308 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { allListings } from "../../data/listings";
+import { allGroups } from "../../data/travelGroups";
+
+// Remove getStaticPaths to enable server-side rendering for dynamic IDs
+// This allows the page to work with database listings that aren't in the mock data
+
+const { id } = Astro.params;
+let listing = allListings.find((l) => l.id === id);
+
+if (!listing) {
+  const g = allGroups.find((gr) => gr.slug === id || gr.id === id);
+  if (g) {
+    listing = {
+      id: g.id,
+      title: g.title,
+      subtitle: `${g.destination} · ${new Date(g.startDate).toLocaleDateString()} – ${new Date(g.endDate).toLocaleDateString()}`,
+      priceText: `$${g.priceUsd} per night · 4.8`,
+      imageUrl: g.coverUrl,
+      isGuestFavorite: false,
+    } as any;
+  }
+}
+
+// If still not found, try fetching from API (for database listings)
+if (!listing) {
+  try {
+    const response = await fetch(`${Astro.url.origin}/api/listings`);
+    if (response.ok) {
+      const { listings } = await response.json();
+      const dbListing = listings.find((l: any) => l.id === id);
+      if (dbListing) {
+        listing = {
+          id: dbListing.id,
+          title: dbListing.title,
+          subtitle: dbListing.subtitle || dbListing.destination,
+          priceText: dbListing.price_min
+            ? `RM${dbListing.price_min} per night`
+            : "Price TBD",
+          imageUrl: `https://picsum.photos/seed/${encodeURIComponent(dbListing.id)}/640/480`,
+          isGuestFavorite: false,
+        } as any;
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching listing:", error);
+  }
+}
+
+if (!listing) {
+  return Astro.redirect("/");
+}
+// Mock calendar data
+const weekdays = ["S", "M", "T", "W", "T", "F", "S"];
+const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
+---
+
+<Layout>
+  <main class="max-w-[1200px] mx-auto px-4 py-6">
+    <!-- Title & meta -->
+    <h1 class="text-[20px] md:text-[22px] font-medium">{listing.title}</h1>
+    <div class="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+      {
+        listing.isGuestFavorite && (
+          <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[12px] text-slate-800">
+            🏅 Guest favourite
+          </span>
+        )
+      }
+      <span class="inline-flex items-center gap-1">⭐ 4.85</span>
+      <span>· 268 reviews</span>
+      <span>·</span>
+      <span>{listing.subtitle}</span>
+    </div>
+
+    <!-- Gallery + Sidebar -->
+    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="md:col-span-2 grid grid-cols-4 grid-rows-2 gap-2">
+        <img
+          src={listing.imageUrl}
+          alt={listing.title}
+          class="col-span-4 row-span-2 md:col-span-2 md:row-span-2 w-full h-full object-cover rounded-xl"
+        />
+        <!-- Mock thumbnails -->
+        <img
+          src={`https://picsum.photos/seed/${listing.id}-a/400/300`}
+          class="hidden md:block w-full h-full object-cover rounded-xl"
+          alt="thumb a"
+        />
+        <img
+          src={`https://picsum.photos/seed/${listing.id}-b/400/300`}
+          class="hidden md:block w-full h-full object-cover rounded-xl"
+          alt="thumb b"
+        />
+        <img
+          src={`https://picsum.photos/seed/${listing.id}-c/400/300`}
+          class="hidden md:block w-full h-full object-cover rounded-xl"
+          alt="thumb c"
+        />
+        <img
+          src={`https://picsum.photos/seed/${listing.id}-d/400/300`}
+          class="hidden md:block w-full h-full object-cover rounded-xl"
+          alt="thumb d"
+        />
+      </div>
+      <!-- Booking card (mock) -->
+      <aside class="md:col-span-1">
+        <div class="rounded-xl border border-slate-200 p-4 sticky top-6">
+          <div class="text-xl font-semibold">
+            {listing.priceText.split(" · ")[0]}
+          </div>
+          <div class="text-slate-600 text-sm">
+            4 guests · 1 bedroom · 1 bath
+          </div>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <input
+              class="col-span-1 border rounded-lg px-3 py-2 text-sm"
+              placeholder="Check-in"
+            />
+            <input
+              class="col-span-1 border rounded-lg px-3 py-2 text-sm"
+              placeholder="Check-out"
+            />
+            <input
+              class="col-span-2 border rounded-lg px-3 py-2 text-sm"
+              placeholder="Guests"
+            />
+          </div>
+          <button class="mt-3 w-full rounded-lg bg-rose-500 text-white py-2"
+            >Reserve</button
+          >
+          <p class="text-center text-[12px] text-slate-500 mt-2">
+            You won't be charged yet
+          </p>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Host summary & highlights (mock) -->
+    <section class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="space-y-3">
+        <h2 class="text-[18px] font-medium">About this place</h2>
+        <ul class="text-sm text-slate-700 list-disc pl-5 space-y-1">
+          <li>Cozy serviced apartment with city view.</li>
+          <li>High-speed Wi‑Fi and dedicated workspace.</li>
+          <li>Self check-in with smart lock.</li>
+        </ul>
+      </div>
+      <div class="space-y-3">
+        <h2 class="text-[18px] font-medium">Hosted by X Place</h2>
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-full bg-slate-200"></div>
+          <div class="text-sm text-slate-700">
+            Superhost · 4 years hosting · 4.9 rating
+          </div>
+        </div>
+        <h3 class="mt-3 font-medium">What this place offers</h3>
+        <div class="grid grid-cols-2 gap-2 text-sm text-slate-700">
+          <span>Pool</span>
+          <span>Gym</span>
+          <span>Kitchen</span>
+          <span>Free parking</span>
+          <span>Air conditioning</span>
+          <span>Washer</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Calendar (mock) -->
+    <section class="mt-6 border-t border-slate-200 pt-6">
+      <h2 class="text-[18px] font-medium mb-3">{`2 nights in Kuala Lumpur`}</h2>
+      <div class="w-full overflow-auto">
+        <div class="inline-block border rounded-xl p-3">
+          <!-- Weekday headers -->
+          <div
+            class="grid grid-cols-7 gap-1 text-center text-[11px] text-slate-500"
+          >
+            {weekdays.map((d) => <div class="py-1">{d}</div>)}
+          </div>
+          <!-- Days grid (mock) -->
+          <div
+            class="mt-1 grid grid-cols-7 gap-1 text-center text-xs text-slate-700"
+          >
+            {Array.from({ length: 3 }).map(() => <div />)}
+            {
+              daysInMonth.map((d) => (
+                <div class="h-8 w-8 flex items-center justify-center rounded hover:bg-slate-100">
+                  {d}
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reviews (mock) -->
+    <section class="mt-8">
+      <div class="text-3xl font-semibold">4.85</div>
+      <p class="text-sm text-slate-600">Guest favourite · 200+ reviews</p>
+      <!-- Rating breakdown -->
+      <div class="mt-4 grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
+        {
+          [
+            "Cleanliness",
+            "Accuracy",
+            "Check-in",
+            "Communication",
+            "Location",
+            "Value",
+          ].map((k) => (
+            <div
+              class="flex flex-col items-center gap-1 border rounded-lg p-3"
+              title={k}
+            >
+              <div class="text-[22px]">4.8</div>
+              <div class="text-slate-600">{k}</div>
+            </div>
+          ))
+        }
+      </div>
+      <!-- Review cards -->
+      <div class="mt-4 grid md:grid-cols-2 gap-4">
+        <div class="border rounded-xl p-4">
+          <p class="text-sm text-slate-700">
+            “Great location and very comfortable stay. Will come back again!”
+          </p>
+          <p class="text-xs text-slate-500 mt-2">— Fiona, Jan 2025</p>
+        </div>
+        <div class="border rounded-xl p-4">
+          <p class="text-sm text-slate-700">
+            “Clean, modern, and the view is amazing. Host is responsive.”
+          </p>
+          <p class="text-xs text-slate-500 mt-2">— Nadia, Dec 2024</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Map (mock) -->
+    <section class="mt-8">
+      <h2 class="text-[18px] font-medium">Where you'll be</h2>
+      <div
+        class="mt-2 h-[320px] w-full rounded-xl border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-500"
+      >
+        <span>🗺️ Map placeholder</span>
+      </div>
+    </section>
+
+    <!-- Host card (mock) -->
+    <section class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+      <div class="md:col-span-1">
+        <div class="rounded-xl border p-4">
+          <div class="flex items-center gap-3">
+            <div class="h-12 w-12 rounded-full bg-slate-200"></div>
+            <div>
+              <div class="font-medium">X Place is a Superhost</div>
+              <div class="text-xs text-slate-600">
+                Responds within an hour · 100% response rate
+              </div>
+            </div>
+          </div>
+          <button class="mt-3 w-full rounded-lg border px-4 py-2 text-sm"
+            >Message host</button
+          >
+        </div>
+      </div>
+      <div class="md:col-span-2 space-y-3 text-sm text-slate-700">
+        <p>
+          Some info has been automatically translated. Show original language.
+        </p>
+        <p>
+          For safety reasons, keep all communication and payments on the
+          platform.
+        </p>
+      </div>
+    </section>
+
+    <!-- Things to know (mock) -->
+    <section
+      class="mt-10 border-t border-slate-200 pt-6 grid grid-cols-1 md:grid-cols-3 gap-6 text-sm"
+    >
+      <div>
+        <h3 class="font-medium mb-2">House rules</h3>
+        <ul class="space-y-1 text-slate-700">
+          <li>Check-in after 3:00 PM</li>
+          <li>Checkout before 11:00 AM</li>
+          <li>No smoking</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="font-medium mb-2">Safety & property</h3>
+        <ul class="space-y-1 text-slate-700">
+          <li>Carbon monoxide alarm not reported</li>
+          <li>Smoke alarm installed</li>
+          <li>Security camera (external)</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="font-medium mb-2">Cancellation policy</h3>
+        <ul class="space-y-1 text-slate-700">
+          <li>Free cancellation before 72 hours</li>
+          <li>Partial refund after that</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</Layout>

@@ -1,22 +1,64 @@
+---
+import "../styles/global.css";
+import Header from "../components/layout/Header.astro";
+import Footer from "../components/layout/Footer.astro";
+import { getSupabase } from "../lib/supabaseClient";
+
+// Fetch initial listings on the server for better SEO and initial load
+const supabase = getSupabase();
+const { data: rows, error } = await supabase
+  .from("listings")
+  .select("*")
+  .order("created_at", { ascending: false })
+  .limit(12);
+
+const initialListings = (rows || []).map((r) => ({
+  id: r.id as string,
+  title: (r.title as string) || "Untitled",
+  subtitle: (r.destination as string) || "",
+  destination: r.destination as string,
+  description: r.description as string | null,
+  price_min: r.price_min as number | null,
+  price_max: r.price_max as number | null,
+  priceText:
+    typeof r.price_min === "number"
+      ? `RM${r.price_min} per night`
+      : typeof r.price_max === "number"
+        ? `Up to RM${r.price_max}`
+        : "Price TBD",
+  imageUrl: `https://picsum.photos/seed/${encodeURIComponent(String(r.id))}/640/480`,
+  isGuestFavorite: false,
+  instant_bookable: Boolean(r.instant_bookable),
+  created_at: r.created_at as string,
+}));
+---
+
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
-	</head>
-	<body>
-		<slot />
-	</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Astro Basics</title>
+    <script is:inline define:vars={{ initialListings }}>
+      window.__INITIAL_LISTINGS__ = initialListings;
+    </script>
+  </head>
+  <body>
+    <div id="root">
+      <Header />
+      <slot />
+      <Footer />
+    </div>
+  </body>
 </html>
 
 <style>
-	html,
-	body {
-		margin: 0;
-		width: 100%;
-		height: 100%;
-	}
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+  }
 </style>
