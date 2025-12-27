@@ -25,11 +25,18 @@ import {
   Plane,
   Users,
   ArrowRight,
+  Home,
 } from "lucide-react";
 import type { TravelGroup } from "../../data/travelGroups";
+import { useUserListings } from "../../hooks/useUserListings";
+import ListingCard from "../ui/ListingCard";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 
-export default function Profile() {
+function ProfileContent() {
   const user = useAuth((s) => s.user);
+  const { data: userListings = [], isLoading: isLoadingListings } =
+    useUserListings(user?.id);
 
   if (!user) {
     return (
@@ -158,6 +165,75 @@ export default function Profile() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* My Listings Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Home className="h-5 w-5 text-rose-500" />
+                My Listings
+              </CardTitle>
+              <CardDescription>
+                Properties you've created - {userListings.length} total
+              </CardDescription>
+            </div>
+            <a
+              href="/listing/create"
+              className="flex items-center gap-1 text-sm text-rose-600 hover:text-rose-700"
+            >
+              Create new
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoadingListings ? (
+            <div className="animate-pulse">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-64 bg-gray-200 rounded-lg"></div>
+                ))}
+              </div>
+            </div>
+          ) : userListings.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {userListings.map((listing) => (
+                <ListingCard
+                  key={listing.id}
+                  listing={{
+                    ...listing,
+                    priceText: listing.price_min
+                      ? `RM${listing.price_min} per night`
+                      : listing.price_max
+                      ? `Up to RM${listing.price_max}`
+                      : "Price TBD",
+                    imageUrl: `https://picsum.photos/seed/${encodeURIComponent(
+                      listing.id
+                    )}/640/480`,
+                    isGuestFavorite: false,
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed py-12 text-center">
+              <Home className="mx-auto h-12 w-12 text-slate-300" />
+              <p className="mt-3 text-sm text-slate-500">
+                You haven't created any listings yet
+              </p>
+              <a
+                href="/listing/create"
+                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-rose-500 px-4 py-2 text-sm font-medium text-white hover:bg-rose-600"
+              >
+                Create Your First Listing
+                <ArrowRight className="h-4 w-4" />
+              </a>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -550,5 +626,25 @@ function Clock({ className }: { className?: string }) {
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
     </svg>
+  );
+}
+
+export default function Profile() {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 60 * 1000,
+            refetchOnWindowFocus: false,
+          },
+        },
+      })
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ProfileContent />
+    </QueryClientProvider>
   );
 }

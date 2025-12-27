@@ -18,15 +18,25 @@ interface Listing {
 export const GET: APIRoute = async ({ request }) => {
   try {
     const url = new URL(request.url);
-    const limit = Number(url.searchParams.get('limit')) || 12;
-    
+    const limit = Number(url.searchParams.get("limit")) || 12;
+    const creatorId = url.searchParams.get("creatorId");
+
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-    
-    const { data: listings, error } = await supabase
-      .from('listings')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
+
+    let query = supabase
+      .from("listings")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    // Filter by creator_id if provided
+    if (creatorId) {
+      query = query.eq("creator_id", creatorId);
+    } else {
+      // Only apply limit when not filtering by creator
+      query = query.limit(limit);
+    }
+
+    const { data: listings, error } = await query;
 
     if (error) {
       throw error;
@@ -34,9 +44,9 @@ export const GET: APIRoute = async ({ request }) => {
 
     return Response.json({ listings });
   } catch (error) {
-    console.error('Error fetching listings:', error);
+    console.error("Error fetching listings:", error);
     return Response.json(
-      { error: 'Failed to fetch listings' },
+      { error: "Failed to fetch listings" },
       { status: 500 }
     );
   }
