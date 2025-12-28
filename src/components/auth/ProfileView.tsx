@@ -212,7 +212,10 @@ function ProfileViewContent({ userId }: ProfileViewProps) {
                 {isOwnProfile ? (
                   <>
                     <a href="/settings" className="w-full sm:w-auto">
-                      <Button variant="outline" className="border-slate-300 w-full">
+                      <Button
+                        variant="outline"
+                        className="border-slate-300 w-full"
+                      >
                         <Edit className="h-4 w-4 mr-2" />
                         Edit Profile
                       </Button>
@@ -245,7 +248,10 @@ function ProfileViewContent({ userId }: ProfileViewProps) {
                             </>
                           )}
                         </Button>
-                        <Button variant="outline" className="border-slate-300 w-full">
+                        <Button
+                          variant="outline"
+                          className="border-slate-300 w-full"
+                        >
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Message
                         </Button>
@@ -258,7 +264,11 @@ function ProfileViewContent({ userId }: ProfileViewProps) {
                             Login to Follow
                           </Button>
                         </a>
-                        <Button variant="outline" className="border-slate-300 w-full" disabled>
+                        <Button
+                          variant="outline"
+                          className="border-slate-300 w-full"
+                          disabled
+                        >
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Message
                         </Button>
