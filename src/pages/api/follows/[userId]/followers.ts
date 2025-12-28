@@ -1,7 +1,8 @@
 import type { APIRoute } from "astro";
-import { db } from "../../../../lib/db";
-import { follows, users } from "../../../../db/schema";
-import { eq } from "drizzle-orm";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL!;
+const SERVICE_ROLE_KEY = import.meta.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export const GET: APIRoute = async ({ params }) => {
   try {
@@ -14,20 +15,40 @@ export const GET: APIRoute = async ({ params }) => {
       });
     }
 
-    // Get followers (users who follow this user)
-    const followers = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        role: users.role,
-        followedAt: follows.createdAt,
-      })
-      .from(follows)
-      .innerJoin(users, eq(follows.followerId, users.id))
-      .where(eq(follows.followingId, userId));
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    return new Response(JSON.stringify(followers), {
+    // Get followers (users who follow this user)
+    const { data: followers, error } = await supabase
+      .from("follows")
+      .select(
+        `
+        created_at,
+        follower:users!follower_id (
+          id,
+          email,
+          name,
+          role
+        )
+      `
+      )
+      .eq("following_id", userId);
+
+    if (error) {
+      console.error("Error fetching followers:", error);
+      throw error;
+    }
+
+    // Transform the response
+    const transformedFollowers =
+      followers?.map((f: any) => ({
+        id: f.follower.id,
+        email: f.follower.email,
+        name: f.follower.name,
+        role: f.follower.role,
+        followedAt: f.created_at,
+      })) || [];
+
+    return new Response(JSON.stringify(transformedFollowers), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

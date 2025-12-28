@@ -1,7 +1,4 @@
 import type { APIRoute } from "astro";
-import { db } from "../../../lib/db";
-import { follows } from "../../../db/schema";
-import { eq, and } from "drizzle-orm";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL!;
@@ -42,17 +39,19 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    const deleted = await db
-      .delete(follows)
-      .where(
-        and(
-          eq(follows.followerId, user.id),
-          eq(follows.followingId, followingId)
-        )
-      )
-      .returning();
+    const { data: deleted, error } = await supabase
+      .from("follows")
+      .delete()
+      .eq("follower_id", user.id)
+      .eq("following_id", followingId)
+      .select();
 
-    if (deleted.length === 0) {
+    if (error) {
+      console.error("Error unfollowing user:", error);
+      throw error;
+    }
+
+    if (!deleted || deleted.length === 0) {
       return new Response(
         JSON.stringify({ error: "Not following this user" }),
         {

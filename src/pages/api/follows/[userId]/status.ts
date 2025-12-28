@@ -1,7 +1,4 @@
 import type { APIRoute } from "astro";
-import { db } from "../../../../lib/db";
-import { follows } from "../../../../db/schema";
-import { eq, and } from "drizzle-orm";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL!;
@@ -39,16 +36,17 @@ export const GET: APIRoute = async ({ params, request }) => {
       });
     }
 
-    const [follow] = await db
-      .select()
-      .from(follows)
-      .where(
-        and(
-          eq(follows.followerId, user.id),
-          eq(follows.followingId, targetUserId)
-        )
-      )
-      .limit(1);
+    const { data: follow, error } = await supabase
+      .from("follows")
+      .select("*")
+      .eq("follower_id", user.id)
+      .eq("following_id", targetUserId)
+      .maybeSingle();
+
+    if (error && error.code !== "PGRST116") {
+      console.error("Error checking follow status:", error);
+      throw error;
+    }
 
     return new Response(JSON.stringify({ isFollowing: !!follow }), {
       status: 200,

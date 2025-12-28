@@ -1,7 +1,4 @@
 import type { APIRoute } from "astro";
-import { db } from "../../../lib/db";
-import { follows } from "../../../db/schema";
-import { eq, and } from "drizzle-orm";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL!;
@@ -51,18 +48,14 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     // Check if already following
-    const existing = await db
-      .select()
-      .from(follows)
-      .where(
-        and(
-          eq(follows.followerId, user.id),
-          eq(follows.followingId, followingId)
-        )
-      )
-      .limit(1);
+    const { data: existing } = await supabase
+      .from("follows")
+      .select("*")
+      .eq("follower_id", user.id)
+      .eq("following_id", followingId)
+      .maybeSingle();
 
-    if (existing.length > 0) {
+    if (existing) {
       return new Response(
         JSON.stringify({ error: "Already following this user" }),
         {
@@ -72,13 +65,19 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    const [follow] = await db
-      .insert(follows)
-      .values({
-        followerId: user.id,
-        followingId: followingId,
+    const { data: follow, error } = await supabase
+      .from("follows")
+      .insert({
+        follower_id: user.id,
+        following_id: followingId,
       })
-      .returning();
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error following user:", error);
+      throw error;
+    }
 
     return new Response(JSON.stringify(follow), {
       status: 201,
