@@ -37,9 +37,18 @@ import {
   Camera,
   CheckCircle2,
   Clock,
+  UserPlus,
+  UserMinus,
 } from "lucide-react";
 import type { TravelGroup } from "../../data/travelGroups";
 import { useUserListings } from "../../hooks/useUserListings";
+import {
+  useFollowStatus,
+  useFollowers,
+  useFollowing,
+  useFollowUser,
+  useUnfollowUser,
+} from "../../hooks/useFollows";
 import ListingCard from "../ui/ListingCard";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
@@ -48,6 +57,24 @@ function ProfileContent() {
   const user = useAuth((s) => s.user);
   const { data: userListings = [], isLoading: isLoadingListings } =
     useUserListings(user?.id);
+  const { data: followStatus } = useFollowStatus(user?.id);
+  const { data: followers = [] } = useFollowers(user?.id);
+  const { data: following = [] } = useFollowing(user?.id);
+  const followUser = useFollowUser();
+  const unfollowUser = useUnfollowUser();
+
+  const handleFollowToggle = async () => {
+    if (!user?.id) return;
+    try {
+      if (followStatus?.isFollowing) {
+        await unfollowUser.mutateAsync(user.id);
+      } else {
+        await followUser.mutateAsync(user.id);
+      }
+    } catch (error) {
+      console.error("Error toggling follow:", error);
+    }
+  };
 
   if (!user) {
     return (
@@ -233,6 +260,30 @@ function ProfileContent() {
                     <div>
                       <p className="font-semibold text-slate-900">24</p>
                       <p className="text-xs text-slate-500">Reviews</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-900">
+                        {followers.length}
+                      </p>
+                      <p className="text-xs text-slate-500">Followers</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="h-10 w-10 rounded-lg bg-cyan-100 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-cyan-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-900">
+                        {following.length}
+                      </p>
+                      <p className="text-xs text-slate-500">Following</p>
                     </div>
                   </div>
                 </div>
@@ -582,6 +633,118 @@ function ProfileContent() {
                       <p className="text-xs text-slate-600">Extra security</p>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Followers */}
+            <Card className="shadow-md">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5 text-orange-500" />
+                  Followers
+                </CardTitle>
+                <CardDescription>
+                  {followers.length}{" "}
+                  {followers.length === 1 ? "person" : "people"} following you
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {followers.length > 0 ? (
+                    followers.slice(0, 5).map((follower) => (
+                      <div
+                        key={follower.id}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        <Avatar className="h-10 w-10 border-2 border-slate-200">
+                          <AvatarFallback className="bg-gradient-to-br from-orange-400 to-red-500 text-white text-sm">
+                            {(follower.name || follower.email)
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">
+                            {follower.name || "User"}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {follower.email}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="text-xs shrink-0">
+                          {follower.role}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 text-slate-300 mx-auto mb-2" />
+                      <p className="text-sm text-slate-500">No followers yet</p>
+                    </div>
+                  )}
+                  {followers.length > 5 && (
+                    <Button variant="ghost" size="sm" className="w-full mt-2">
+                      View all {followers.length} followers
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Following */}
+            <Card className="shadow-md">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5 text-cyan-500" />
+                  Following
+                </CardTitle>
+                <CardDescription>
+                  You're following {following.length}{" "}
+                  {following.length === 1 ? "person" : "people"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {following.length > 0 ? (
+                    following.slice(0, 5).map((followedUser) => (
+                      <div
+                        key={followedUser.id}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        <Avatar className="h-10 w-10 border-2 border-slate-200">
+                          <AvatarFallback className="bg-gradient-to-br from-cyan-400 to-blue-500 text-white text-sm">
+                            {(followedUser.name || followedUser.email)
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">
+                            {followedUser.name || "User"}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {followedUser.email}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="text-xs shrink-0">
+                          {followedUser.role}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 text-slate-300 mx-auto mb-2" />
+                      <p className="text-sm text-slate-500">
+                        Not following anyone yet
+                      </p>
+                    </div>
+                  )}
+                  {following.length > 5 && (
+                    <Button variant="ghost" size="sm" className="w-full mt-2">
+                      View all {following.length} following
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

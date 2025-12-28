@@ -8,6 +8,7 @@ const { id } = Astro.params;
 let listing = allListings.find((l) => l.id === id);
 let isDbListing = false;
 let listingImages: Array<{ id: string; url: string; caption?: string }> = [];
+let creator: { id: string; name: string | null; email: string; role: string } | null = null;
 
 if (!listing) {
   const g = allGroups.find((gr) => gr.slug === id || gr.id === id);
@@ -32,6 +33,7 @@ if (!listing) {
       const dbListing = listings.find((l: any) => l.id === id);
       if (dbListing) {
         isDbListing = true;
+        creator = dbListing.creator || null;
         listing = {
           id: dbListing.id,
           title: dbListing.title,
@@ -403,7 +405,19 @@ const similarListings = allListings
         <div class="flex items-center justify-between">
           <div>
             <h2 class="text-2xl font-bold text-slate-900 mb-2">
-              Entire apartment hosted by Modern Living
+              {creator ? (
+                <>
+                  Entire apartment hosted by{" "}
+                  <a 
+                    href={`/profile/${creator.id}`}
+                    class="text-rose-600 hover:text-rose-700 underline decoration-2 underline-offset-2 transition-colors"
+                  >
+                    {creator.name || creator.email}
+                  </a>
+                </>
+              ) : (
+                "Entire apartment hosted by Modern Living"
+              )}
             </h2>
             <div class="flex items-center gap-2 text-slate-600">
               <span>4 guests</span>
@@ -416,11 +430,19 @@ const similarListings = allListings
             </div>
           </div>
           <div class="hidden md:block">
-            <img
-              src="https://i.pravatar.cc/150?img=50"
-              alt="Host"
-              class="w-16 h-16 rounded-full border-2 border-slate-200"
-            />
+            {creator ? (
+              <a href={`/profile/${creator.id}`}>
+                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-rose-400 to-pink-600 flex items-center justify-center text-white font-bold text-xl border-2 border-slate-200 hover:scale-105 transition-transform cursor-pointer">
+                  {(creator.name || creator.email).slice(0, 2).toUpperCase()}
+                </div>
+              </a>
+            ) : (
+              <img
+                src="https://i.pravatar.cc/150?img=50"
+                alt="Host"
+                class="w-16 h-16 rounded-full border-2 border-slate-200"
+              />
+            )}
           </div>
         </div>
       </div>

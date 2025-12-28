@@ -32,6 +32,12 @@ export const GET: APIRoute = async ({ request }) => {
         images!listing_id (
           url,
           display_order
+        ),
+        creator:users!creator_id (
+          id,
+          name,
+          email,
+          role
         )
       `
       )
@@ -51,7 +57,7 @@ export const GET: APIRoute = async ({ request }) => {
       throw error;
     }
 
-    // Transform listings to include first_image_url
+    // Transform listings to include first_image_url and creator info
     const listingsWithImages = listings?.map((listing: any) => {
       // Sort images by display_order and get first one
       const sortedImages = (listing.images || []).sort(
@@ -62,6 +68,7 @@ export const GET: APIRoute = async ({ request }) => {
       return {
         ...listing,
         first_image_url: firstImage?.url || null,
+        creator: listing.creator || null,
         images: undefined, // Remove nested images array from response
       };
     });

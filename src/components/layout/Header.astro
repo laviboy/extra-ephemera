@@ -28,9 +28,9 @@ const currentPath = Astro.url.pathname;
         <!-- Desktop Navigation Links -->
         <nav class="hidden lg:flex items-center gap-1">
           <a
-            href="/"
+            href="/explore"
             class={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              currentPath === "/"
+              currentPath === "/explore"
                 ? "text-rose-600 bg-rose-50"
                 : "text-slate-700 hover:text-rose-600 hover:bg-slate-50"
             }`}
@@ -157,9 +157,9 @@ const currentPath = Astro.url.pathname;
     <div id="mobile-menu" class="lg:hidden hidden border-t">
       <nav class="py-4 space-y-1">
         <a
-          href="/"
+          href="/explore"
           class={`block px-4 py-3 text-base font-medium rounded-md transition-colors ${
-            currentPath === "/"
+            currentPath === "/explore"
               ? "text-rose-600 bg-rose-50"
               : "text-slate-700 hover:text-rose-600 hover:bg-slate-50"
           }`}

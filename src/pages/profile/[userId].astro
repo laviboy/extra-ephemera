@@ -1,0 +1,10 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import ProfileView from "../../components/auth/ProfileView.tsx";
+
+const { userId } = Astro.params;
+---
+
+<Layout title="User Profile - Wandra">
+  <ProfileView userId={userId!} client:load />
+</Layout>
