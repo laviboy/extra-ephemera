@@ -317,14 +317,17 @@ function ProfileContent() {
                         key={listing.id}
                         listing={{
                           ...listing,
+                          subtitle: listing.destination,
                           priceText: listing.price_min
                             ? `RM${listing.price_min} per night`
                             : listing.price_max
                             ? `Up to RM${listing.price_max}`
                             : "Price TBD",
-                          imageUrl: `https://picsum.photos/seed/${encodeURIComponent(
-                            listing.id
-                          )}/640/480`,
+                          imageUrl:
+                            listing.first_image_url ||
+                            `https://picsum.photos/seed/${encodeURIComponent(
+                              listing.id
+                            )}/640/480`,
                           isGuestFavorite: false,
                         }}
                       />

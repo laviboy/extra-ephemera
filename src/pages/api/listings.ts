@@ -13,6 +13,7 @@ interface Listing {
   price_max: number | null;
   instant_bookable: boolean;
   created_at: string;
+  first_image_url?: string | null;
 }
 
 export const GET: APIRoute = async ({ request }) => {
@@ -25,7 +26,15 @@ export const GET: APIRoute = async ({ request }) => {
 
     let query = supabase
       .from("listings")
-      .select("*")
+      .select(
+        `
+        *,
+        images!listing_id (
+          url,
+          display_order
+        )
+      `
+      )
       .order("created_at", { ascending: false });
 
     // Filter by creator_id if provided
@@ -42,7 +51,22 @@ export const GET: APIRoute = async ({ request }) => {
       throw error;
     }
 
-    return Response.json({ listings });
+    // Transform listings to include first_image_url
+    const listingsWithImages = listings?.map((listing: any) => {
+      // Sort images by display_order and get first one
+      const sortedImages = (listing.images || []).sort(
+        (a: any, b: any) => a.display_order - b.display_order
+      );
+      const firstImage = sortedImages[0];
+
+      return {
+        ...listing,
+        first_image_url: firstImage?.url || null,
+        images: undefined, // Remove nested images array from response
+      };
+    });
+
+    return Response.json({ listings: listingsWithImages });
   } catch (error) {
     console.error("Error fetching listings:", error);
     return Response.json(

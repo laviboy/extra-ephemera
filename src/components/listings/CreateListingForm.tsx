@@ -34,6 +34,8 @@ import {
   Sparkles,
   Plane,
 } from "lucide-react";
+import { ImageUploader } from "../ui/image-uploader";
+import { uploadImage } from "../../lib/storage";
 
 type FormState = {
   title: string;
@@ -44,6 +46,14 @@ type FormState = {
   guests: number | "";
   description: string;
 };
+
+interface ImageFile {
+  id: string;
+  file?: File;
+  url: string;
+  caption?: string;
+  displayOrder: number;
+}
 
 const initialState: FormState = {
   title: "",
@@ -57,6 +67,7 @@ const initialState: FormState = {
 
 export default function CreateListingForm() {
   const [state, setState] = useState<FormState>(initialState);
+  const [images, setImages] = useState<ImageFile[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -83,7 +94,7 @@ export default function CreateListingForm() {
       );
       const session = rawSession ? JSON.parse(rawSession) : null;
       const accessToken = session?.access_token;
-
+      // First create the listing
       const res = await fetch("/api/create-listing", {
         method: "POST",
         headers: {
@@ -111,8 +122,74 @@ export default function CreateListingForm() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create listing");
 
+      const listingId = data.listing.id;
+      console.log("✅ Listing created successfully:", listingId);
+
+      // Upload images if any
+      if (images.length > 0) {
+        console.log(`📸 Uploading ${images.length} images...`);
+
+        const uploadPromises = images.map(async (image, index) => {
+          if (image.file) {
+            try {
+              console.log(
+                `⬆️  Uploading image ${index + 1}/${images.length}:`,
+                image.file.name
+              );
+
+              const result = await uploadImage(image.file, listingId);
+              console.log(`✅ Image uploaded to storage:`, result.path);
+
+              // Save image metadata to database
+              const imageRes = await fetch("/api/images", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({
+                  id: crypto.randomUUID(),
+                  listingId,
+                  url: result.url,
+                  storagePath: result.path,
+                  caption: image.caption,
+                  displayOrder: image.displayOrder,
+                }),
+              });
+
+              if (!imageRes.ok) {
+                const errorData = await imageRes.json();
+                throw new Error(
+                  errorData.error || "Failed to save image metadata"
+                );
+              }
+
+              const imageData = await imageRes.json();
+              console.log(`✅ Image metadata saved to database:`, imageData);
+
+              return { success: true, index };
+            } catch (imgError: any) {
+              console.error(
+                `❌ Failed to upload image ${index + 1}:`,
+                imgError
+              );
+              return { success: false, index, error: imgError.message };
+            }
+          }
+        });
+
+        const results = await Promise.allSettled(uploadPromises);
+        const successful = results.filter(
+          (r) => r.status === "fulfilled"
+        ).length;
+        console.log(
+          `📊 Image upload complete: ${successful}/${images.length} successful`
+        );
+      }
+
       // Show success dialog
       setState(initialState);
+      setImages([]);
       setShowSuccessDialog(true);
     } catch (err: any) {
       setError(err.message);
@@ -374,7 +451,7 @@ export default function CreateListingForm() {
                   id="description"
                   value={state.description}
                   onChange={(e) => update("description", e.target.value)}
-                  placeholder="Describe your property in detail...\n\n• What makes your property unique?\n• What amenities do you offer?\n• What's nearby? (beaches, restaurants, attractions)\n• What's your space like? (rooms, layout, views)\n• Any house rules or important information?"
+                  placeholder="Describe your travel experience in detail"
                   rows={8}
                   className="resize-none transition-all border-slate-300 focus:border-purple-500 focus:ring-purple-500"
                 />
@@ -387,6 +464,24 @@ export default function CreateListingForm() {
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* Images Section */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                <div className="h-8 w-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                  <Image className="h-4 w-4 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Property Images
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Add photos to showcase your property
+                  </p>
+                </div>
+              </div>
+              <ImageUploader onImagesChange={setImages} maxImages={10} />
             </div>
 
             {/* Error Display */}

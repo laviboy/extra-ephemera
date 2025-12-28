@@ -4,6 +4,7 @@ export * from "./profiles";
 export * from "./companies";
 export * from "./agents";
 export * from "./listings";
+export * from "./images";
 export * from "./packages";
 export * from "./bookings";
 export * from "./conversations";
