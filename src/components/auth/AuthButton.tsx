@@ -252,15 +252,27 @@ function AuthModal({ onClose }: { onClose: () => void }) {
         if (u) {
           const name = (u.user_metadata as any)?.full_name ?? u.email ?? null;
           setUser({ id: u.id, email: u.email ?? email, name });
-          // Try to upsert into our public users table (schema adapted for Supabase)
+
+          // Sync to your DB on login as well
           try {
-            await supabase
-              .from("users")
-              .upsert(
-                { id: u.id, email: u.email ?? email, name },
-                { onConflict: "id" }
-              );
-          } catch {}
+            const response = await fetch("/api/upsert-user", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id: u.id,
+                email: u.email ?? email,
+                name,
+                emailVerified: u.email_confirmed_at ?? null,
+              }),
+            });
+
+            if (!response.ok) {
+              console.error("Failed to sync user on login");
+            }
+          } catch (dbError) {
+            console.error("Database sync error on login:", dbError);
+          }
+
           onClose();
         }
       } else {
@@ -278,16 +290,32 @@ function AuthModal({ onClose }: { onClose: () => void }) {
           setUser({ id: u.id, email: u.email ?? email, name });
 
           // ✅ Sync to your DB
-          await fetch("/api/upsert-user", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: u.id,
-              email: u.email,
-              name,
-              emailVerified: u.email_confirmed_at ?? null,
-            }),
-          });
+          try {
+            const response = await fetch("/api/upsert-user", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id: u.id,
+                email: u.email ?? email,
+                name,
+                emailVerified: u.email_confirmed_at ?? null,
+              }),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              console.error("Failed to sync user to database:", errorData);
+              throw new Error(errorData.error || "Failed to sync user");
+            }
+
+            const result = await response.json();
+            console.log("User synced to database:", result);
+          } catch (dbError: any) {
+            console.error("Database sync error:", dbError);
+            // Don't throw - allow signup to complete even if DB sync fails
+            setMessage("Account created! Please log in.");
+          }
+
           onClose();
         } else {
           setMessage("Check your email to confirm your sign up.");
