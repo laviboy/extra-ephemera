@@ -1,0 +1,10 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { CRMApp } from "../components/crm/CRMApp";
+---
+
+<Layout title="Agent CRM - Travel Platform">
+  <div class="min-h-screen">
+    <CRMApp client:only="react" />
+  </div>
+</Layout>

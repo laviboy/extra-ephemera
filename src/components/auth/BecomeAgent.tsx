@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useAuth } from "../../stores/useAuth";
+import { getSupabase } from "../../lib/supabaseClient";
 import {
   Card,
   CardContent,
@@ -6,6 +8,13 @@ import {
   CardHeader,
   CardTitle,
 } from "../ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -29,7 +38,9 @@ import {
 } from "lucide-react";
 
 export default function BecomeAgent() {
+  const user = useAuth((s) => s.user);
   const [applicationSubmitted, setApplicationSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -41,11 +52,47 @@ export default function BecomeAgent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock submission - would send to API/email
-    console.log("Application submitted:", formData);
-    setApplicationSubmitted(true);
-    // Reset after 3 seconds
-    setTimeout(() => setApplicationSubmitted(false), 5000);
+
+    // TODO: Properly implement agent application flow with form validation
+    // - Add proper form validation (required fields, email format, etc.)
+    // - Store application data (formData) in database
+    // - Add application review/approval process
+    // - Send email notification to admin and applicant
+    // - Create agent profile with additional details (specialties, bio, etc.)
+    // - Add verification/approval workflow
+    // - Show application status tracking
+    // For now: Bypassing form validation and directly updating role to agent
+
+    if (!user?.id) {
+      console.error("User not logged in");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const supabase = getSupabase();
+
+      // Update user role to agent (bypassing form validation for now)
+      const { error: userError } = await supabase
+        .from("users")
+        .update({ role: "agent" })
+        .eq("id", user.id);
+
+      if (userError) throw userError;
+
+      // Update the auth store
+      const { setUser } = useAuth.getState();
+      setUser({
+        ...user,
+        role: "agent",
+      });
+
+      setApplicationSubmitted(true);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const benefits = [
@@ -143,19 +190,19 @@ export default function BecomeAgent() {
             <Button
               size="lg"
               className="bg-white text-rose-700 hover:bg-rose-50"
-              onClick={() =>
-                document
-                  .getElementById("application-form")
-                  ?.scrollIntoView({ behavior: "smooth" })
-              }
+              onClick={(e) => {
+                e.preventDefault();
+                handleSubmit(e as any);
+              }}
+              disabled={isSubmitting}
             >
               <Send className="mr-2 h-5 w-5" />
-              Apply Now
+              {isSubmitting ? "Processing..." : "Apply Now"}
             </Button>
             <Button
               size="lg"
               variant="outline"
-              className="border-white text-white hover:bg-white/10"
+              className="border-white text-black hover:bg-white/10"
             >
               Learn More
             </Button>
@@ -442,9 +489,14 @@ export default function BecomeAgent() {
                     <p className="text-sm text-slate-500">
                       <span className="text-red-500">*</span> Required fields
                     </p>
-                    <Button type="submit" size="lg" className="gap-2">
+                    <Button
+                      type="submit"
+                      size="lg"
+                      className="gap-2"
+                      disabled={true}
+                    >
                       <Send className="h-4 w-4" />
-                      Submit Application
+                      Coming Soon
                     </Button>
                   </div>
                 </form>
@@ -476,6 +528,40 @@ export default function BecomeAgent() {
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      <Dialog
+        open={applicationSubmitted}
+        onOpenChange={setApplicationSubmitted}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+              <CheckCircle2 className="h-10 w-10 text-green-600" />
+            </div>
+            <DialogTitle className="text-center text-2xl">
+              Welcome to the Team!
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Congratulations! You're now a travel agent. You can now access
+              your CRM dashboard and start managing your travel packages and
+              bookings.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-6 flex justify-center">
+            <Button
+              size="lg"
+              onClick={() => {
+                setApplicationSubmitted(false);
+                window.location.href = "/";
+              }}
+              className="w-full sm:w-auto"
+            >
+              Okay, Let's Go!
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

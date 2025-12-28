@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../stores/useAuth";
+import { getSupabase } from "../../lib/supabaseClient";
 import {
   Card,
   CardContent,
@@ -26,6 +27,7 @@ import {
   Save,
   Building2,
   Phone,
+  LayoutDashboard,
 } from "lucide-react";
 
 type SettingsSection =
@@ -41,23 +43,25 @@ export default function Settings() {
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("profile");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock form states
+  // Real data from Supabase
   const [profileData, setProfileData] = useState({
-    fullName: user?.name || "",
-    email: user?.email || "",
-    phone: "+1 (555) 123-4567",
-    bio: "Travel enthusiast exploring the world one adventure at a time.",
-    company: "Tech Solutions Inc.",
-    website: "www.example.com",
+    fullName: "",
+    email: "",
+    role: "traveler" as "traveler" | "agent" | "admin",
+    phone: "",
+    bio: "",
+    company: "",
+    website: "",
   });
 
   const [addressData, setAddressData] = useState({
-    street: "123 Main Street",
-    city: "San Francisco",
-    state: "CA",
-    zipCode: "94102",
-    country: "United States",
+    street: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    country: "",
   });
 
   const [notificationSettings, setNotificationSettings] = useState({
@@ -68,6 +72,53 @@ export default function Settings() {
     tripReminders: true,
     groupUpdates: true,
   });
+
+  // Fetch user data from Supabase
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user?.id) return;
+
+      try {
+        setIsLoading(true);
+        const supabase = getSupabase();
+
+        // Fetch user data from users table
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        if (userError) throw userError;
+
+        // Fetch profile data from profiles table
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", user.id)
+          .single();
+
+        // Update profile data state
+        setProfileData({
+          fullName: userData?.name || "",
+          email: userData?.email || "",
+          role: userData?.role || "traveler",
+          phone: userData?.phone || "",
+          bio: profileData?.bio || "",
+          company: "",
+          website: "",
+        });
+
+        // You can add more data fetching for address, etc.
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [user?.id]);
 
   if (!user) {
     return (
@@ -109,10 +160,46 @@ export default function Settings() {
   ];
 
   const handleSave = async () => {
-    setIsSaving(true);
-    // Mock save - would call API here
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    if (!user?.id) return;
+
+    try {
+      setIsSaving(true);
+      const supabase = getSupabase();
+
+      // Update users table
+      const { error: userError } = await supabase
+        .from("users")
+        .update({
+          name: profileData.fullName,
+          phone: profileData.phone,
+        })
+        .eq("id", user.id);
+
+      if (userError) throw userError;
+
+      // Update or insert profile data
+      const { error: profileError } = await supabase.from("profiles").upsert({
+        user_id: user.id,
+        display_name: profileData.fullName,
+        bio: profileData.bio,
+      });
+
+      if (profileError) throw profileError;
+
+      // Update the auth store
+      const { setUser } = useAuth.getState();
+      setUser({
+        ...user,
+        name: profileData.fullName,
+        role: profileData.role,
+      });
+
+      console.log("Profile saved successfully!");
+    } catch (error) {
+      console.error("Error saving profile:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const initials = (user.name || user.email || "").slice(0, 2).toUpperCase();
@@ -146,40 +233,77 @@ export default function Settings() {
             ))}
           </nav>
 
-          {/* Become Agent Promotion */}
-          <Card className="border-2 border-rose-200 bg-gradient-to-br from-rose-50 to-white">
-            <CardContent className="pt-6">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-rose-100">
-                <Building2 className="h-5 w-5 text-rose-600" />
-              </div>
-              <h3 className="mb-2 font-semibold text-slate-900">
-                Become a Travel Agent
-              </h3>
-              <p className="mb-4 text-sm text-slate-600">
-                Turn your passion into profit. Join our network and earn up to
-                25% commission.
-              </p>
-              <a
-                href="/become-agent"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700"
-              >
-                Learn More
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+          {/* Agent CRM Access - Only shown for agents */}
+          {profileData.role === "agent" && (
+            <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+              <CardContent className="pt-6">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                  <LayoutDashboard className="h-5 w-5 text-blue-600" />
+                </div>
+                <h3 className="mb-2 font-semibold text-slate-900">Agent CRM</h3>
+                <p className="mb-4 text-sm text-slate-600">
+                  Manage your leads, bookings, and client communications in one
+                  place.
+                </p>
+                <a
+                  href="/crm"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </a>
-            </CardContent>
-          </Card>
+                  Open CRM Dashboard
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </a>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Become Agent Promotion - Only shown for non-agents */}
+          {profileData.role !== "agent" && (
+            <Card className="border-2 border-rose-200 bg-gradient-to-br from-rose-50 to-white">
+              <CardContent className="pt-6">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-rose-100">
+                  <Building2 className="h-5 w-5 text-rose-600" />
+                </div>
+                <h3 className="mb-2 font-semibold text-slate-900">
+                  Become a Travel Agent
+                </h3>
+                <p className="mb-4 text-sm text-slate-600">
+                  Turn your passion into profit. Join our network and earn up to
+                  25% commission.
+                </p>
+                <a
+                  href="/become-agent"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+                >
+                  Learn More
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </a>
+              </CardContent>
+            </Card>
+          )}
         </aside>
 
         {/* Main Content */}
@@ -272,6 +396,21 @@ export default function Settings() {
                       placeholder="Your company"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="website">Roles</Label>
+                  <Input
+                    id="roles"
+                    value={profileData.role}
+                    onChange={(e) =>
+                      setProfileData({
+                        ...profileData,
+                        role: e.target.value,
+                      })
+                    }
+                    placeholder="www.yourwebsite.com"
+                  />
                 </div>
 
                 <div className="space-y-2">
