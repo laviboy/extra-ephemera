@@ -1,7 +1,4 @@
 import type { APIRoute } from "astro";
-import { db } from "../../lib/db";
-import { images } from "../../db/schema";
-import { eq } from "drizzle-orm";
 import { createClient } from "@supabase/supabase-js";
 
 export const POST: APIRoute = async ({ request }) => {
@@ -124,7 +121,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 };
 
-export const GET: APIRoute = async ({ url }) => {
+export const GET: APIRoute = async ({ url, request }) => {
   try {
     const listingId = url.searchParams.get("listingId");
 
@@ -134,13 +131,40 @@ export const GET: APIRoute = async ({ url }) => {
       });
     }
 
-    // Fetch images for listing
-    const listingImages = await db.query.images.findMany({
-      where: (images, { eq }) => eq(images.listingId, listingId),
-      orderBy: (images, { asc }) => [asc(images.displayOrder)],
-    });
+    // Get auth token (optional for public reads, required for RLS)
+    const authHeader = request.headers.get("Authorization");
+    const token = authHeader ? authHeader.replace("Bearer ", "") : null;
 
-    return new Response(JSON.stringify({ images: listingImages }), {
+    // Create Supabase client
+    const supabase = createClient(
+      import.meta.env.PUBLIC_SUPABASE_URL!,
+      import.meta.env.PUBLIC_SUPABASE_ANON_KEY!,
+      token
+        ? {
+            global: {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          }
+        : undefined
+    );
+
+    // Fetch images for listing using Supabase
+    const { data: listingImages, error } = await supabase
+      .from("images")
+      .select("*")
+      .eq("listing_id", listingId)
+      .order("display_order", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching images:", error);
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+      });
+    }
+
+    return new Response(JSON.stringify({ images: listingImages || [] }), {
       status: 200,
     });
   } catch (error: any) {
@@ -198,8 +222,21 @@ export const DELETE: APIRoute = async ({ request }) => {
       });
     }
 
-    // Delete image record (cascade will handle storage cleanup if needed)
-    await db.delete(images).where(eq(images.id, id));
+    // Delete image record using Supabase (respects RLS)
+    const { error: deleteError } = await supabase
+      .from("images")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      console.error("Error deleting image:", deleteError);
+      return new Response(
+        JSON.stringify({
+          error: deleteError.message || "Failed to delete image",
+        }),
+        { status: 500 }
+      );
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: "Image deleted successfully" }),
