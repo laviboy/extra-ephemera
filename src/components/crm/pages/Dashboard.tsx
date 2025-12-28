@@ -1,13 +1,30 @@
-import { useList } from "@refinedev/core";
+import { useList, useNavigation } from "@refinedev/core";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
+import { Button } from "../../ui/button";
 import {
   Users,
   Calendar,
   DollarSign,
   MessageSquare,
   TrendingUp,
+  Plane,
+  Star,
+  Target,
+  Mail,
+  Building2,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 import { Badge } from "../../ui/badge";
+import {
+  mockCustomers,
+  mockItineraries,
+  mockCommunications,
+  mockPipeline,
+  mockVendors,
+  mockAnalytics,
+} from "../data/mockData";
 
 export function CRMDashboard() {
   const {
@@ -29,44 +46,58 @@ export function CRMDashboard() {
     resource: "proposals",
   });
 
+  // Use mock data for demonstration
+  const unreadComms = mockCommunications.filter(
+    (c) => c.status === "unread"
+  ).length;
+  const upcomingTrips = mockItineraries.filter(
+    (i) => i.status === "confirmed"
+  ).length;
+
   const stats = [
     {
-      title: "Active Leads",
-      value: conversationsData?.total || 0,
-      icon: <MessageSquare className="h-6 w-6" />,
+      title: "Active Customers",
+      value: mockCustomers.length,
+      icon: <Users className="h-6 w-6" />,
       change: "+12%",
       color: "blue",
     },
     {
-      title: "Bookings This Month",
-      value:
-        bookingsData?.data?.filter(
-          (b: any) => new Date(b.createdAt).getMonth() === new Date().getMonth()
-        ).length || 0,
-      icon: <Calendar className="h-6 w-6" />,
-      change: "+8%",
-      color: "green",
-    },
-    {
-      title: "Pending Proposals",
-      value:
-        proposalsData?.data?.filter((p: any) => p.status === "sent").length ||
-        0,
-      icon: <Users className="h-6 w-6" />,
-      change: "+3",
+      title: "Active Leads",
+      value: mockPipeline.leads.length,
+      icon: <Target className="h-6 w-6" />,
+      change: "+18%",
       color: "purple",
     },
     {
-      title: "Revenue (This Month)",
+      title: "This Month Revenue",
       value: `$${(
-        (bookingsData?.data?.reduce(
-          (acc: number, b: any) => acc + (b.paidAmount || 0),
-          0
-        ) || 0) / 100
-      ).toLocaleString()}`,
+        mockAnalytics.salesPerformance.thisMonth.revenue / 1000
+      ).toFixed(0)}K`,
       icon: <DollarSign className="h-6 w-6" />,
-      change: "+15%",
+      change: `+${mockAnalytics.salesPerformance.thisMonth.growth}%`,
+      color: "green",
+    },
+    {
+      title: "Bookings This Month",
+      value: mockAnalytics.salesPerformance.thisMonth.bookings,
+      icon: <Calendar className="h-6 w-6" />,
+      change: "+8%",
+      color: "orange",
+    },
+    {
+      title: "Unread Messages",
+      value: unreadComms,
+      icon: <Mail className="h-6 w-6" />,
+      change: "New today",
       color: "rose",
+    },
+    {
+      title: "Active Vendors",
+      value: mockVendors.length,
+      icon: <Building2 className="h-6 w-6" />,
+      change: "All active",
+      color: "indigo",
     },
   ];
 
@@ -84,6 +115,11 @@ export function CRMDashboard() {
         icon: "text-purple-600",
       },
       rose: { bg: "bg-rose-50", text: "text-rose-700", icon: "text-rose-600" },
+      indigo: {
+        bg: "bg-indigo-50",
+        text: "text-indigo-700",
+        icon: "text-indigo-600",
+      },
     };
     return colors[color] || colors.blue;
   };
@@ -92,14 +128,16 @@ export function CRMDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">Dashboard</h2>
+        <h2 className="text-2xl font-bold text-slate-900">
+          Travel CRM Dashboard
+        </h2>
         <p className="text-slate-600">
-          Welcome back! Here's your CRM overview.
+          Complete overview of your travel business operations
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {stats.map((stat) => {
           const colors = getColorClasses(stat.color);
           return (
@@ -110,17 +148,17 @@ export function CRMDashboard() {
                     <p className="text-sm font-medium text-slate-600">
                       {stat.title}
                     </p>
-                    <p className="mt-2 text-3xl font-bold text-slate-900">
+                    <p className="mt-2 text-2xl font-bold text-slate-900">
                       {stat.value}
                     </p>
                     <div className="mt-2 flex items-center gap-1">
-                      <TrendingUp className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-600">
+                      <TrendingUp className="h-3 w-3 text-green-600" />
+                      <span className="text-xs font-medium text-green-600">
                         {stat.change}
                       </span>
                     </div>
                   </div>
-                  <div className={`rounded-full p-3 ${colors.bg}`}>
+                  <div className={`rounded-full p-2 ${colors.bg}`}>
                     <div className={colors.icon}>{stat.icon}</div>
                   </div>
                 </div>
@@ -130,77 +168,289 @@ export function CRMDashboard() {
         })}
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Recent Leads */}
+      {/* Quick Actions */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="hover:border-primary cursor-pointer transition-colors">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">New Customer</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Add customer profile
+                </p>
+              </div>
+              <Users className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="hover:border-primary cursor-pointer transition-colors">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Create Itinerary</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Build new trip
+                </p>
+              </div>
+              <Plane className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="hover:border-primary cursor-pointer transition-colors">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Sales Pipeline</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Manage leads
+                </p>
+              </div>
+              <Target className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="hover:border-primary cursor-pointer transition-colors">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Analytics</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  View insights
+                </p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Recent Customers */}
         <Card>
-          <CardHeader>
-            <CardTitle>Recent Leads</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg">VIP Customers</CardTitle>
+            <Button variant="ghost" size="sm">
+              View All <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {conversationsData?.data?.slice(0, 5).map((conversation: any) => (
-                <div
-                  key={conversation.id}
-                  className="flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      {conversation.subject || "New Inquiry"}
-                    </p>
-                    <p className="text-sm text-slate-500">
-                      {new Date(conversation.createdAt).toLocaleDateString()}
-                    </p>
+            <div className="space-y-3">
+              {mockCustomers
+                .filter((c) => c.customerType === "vip")
+                .slice(0, 3)
+                .map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="flex items-center justify-between p-2 hover:bg-muted rounded-lg cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{customer.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          ${customer.lifetimeValue.toLocaleString()} LTV
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="default">VIP</Badge>
                   </div>
-                  <Badge variant="secondary">{conversation.type}</Badge>
-                </div>
-              ))}
-              {(!conversationsData?.data ||
-                conversationsData.data.length === 0) && (
-                <p className="text-center text-sm text-slate-500 py-4">
-                  No recent leads
-                </p>
-              )}
+                ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Upcoming Bookings */}
+        {/* Urgent Tasks */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg">Urgent Tasks</CardTitle>
+            <Badge variant="destructive">
+              {mockItineraries[0]?.reminders.filter(
+                (r) => r.status === "pending"
+              ).length || 0}
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {mockItineraries[0]?.reminders
+                .filter((r) => r.status === "pending")
+                .map((reminder) => (
+                  <div
+                    key={reminder.id}
+                    className="flex items-start gap-3 p-2 border rounded-lg"
+                  >
+                    <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">
+                        {reminder.description}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Due: {new Date(reminder.dueDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              <div className="flex items-start gap-3 p-2 border rounded-lg">
+                <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-sm">
+                    Follow up with new leads
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    3 leads awaiting response
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Stats */}
         <Card>
           <CardHeader>
-            <CardTitle>Upcoming Bookings</CardTitle>
+            <CardTitle className="text-lg">Today's Activity</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {bookingsData?.data?.slice(0, 5).map((booking: any) => (
-                <div
-                  key={booking.id}
-                  className="flex items-center justify-between"
-                >
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      {booking.travelers} travelers
-                    </p>
-                    <p className="text-sm text-slate-500">
-                      {booking.travelDate
-                        ? new Date(booking.travelDate).toLocaleDateString()
-                        : "TBD"}
-                    </p>
-                  </div>
-                  <Badge
-                    variant={
-                      booking.status === "confirmed" ? "default" : "secondary"
-                    }
-                  >
-                    {booking.status}
-                  </Badge>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm">Unread Messages</span>
                 </div>
-              ))}
-              {(!bookingsData?.data || bookingsData.data.length === 0) && (
-                <p className="text-center text-sm text-slate-500 py-4">
-                  No upcoming bookings
+                <Badge variant="secondary">{unreadComms}</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-purple-500" />
+                  <span className="text-sm">New Leads</span>
+                </div>
+                <Badge variant="secondary">
+                  {mockPipeline.leads.filter((l) => l.stage === "new").length}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Plane className="h-4 w-4 text-green-500" />
+                  <span className="text-sm">Departures This Week</span>
+                </div>
+                <Badge variant="secondary">2</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span className="text-sm">Tasks Completed</span>
+                </div>
+                <Badge variant="default">5</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom Row */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Top Performing Leads */}
+        <Card>
+          <CardHeader>
+            <CardTitle>High-Priority Leads</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {mockPipeline.leads
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 4)
+                .map((lead) => (
+                  <div
+                    key={lead.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:border-primary cursor-pointer"
+                  >
+                    <div>
+                      <p className="font-medium">{lead.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {lead.interest}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Budget: {lead.budget}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant="default">Score: {lead.score}</Badge>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {lead.assignedTo}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Revenue Overview */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue Trend (6 Months)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px] flex items-end justify-between gap-2">
+              {mockAnalytics.bookingTrends.map((trend) => {
+                const maxRevenue = Math.max(
+                  ...mockAnalytics.bookingTrends.map((t) => t.revenue)
+                );
+                const height = (trend.revenue / maxRevenue) * 100;
+
+                return (
+                  <div
+                    key={trend.month}
+                    className="flex-1 flex flex-col items-center gap-2"
+                  >
+                    <div
+                      className="w-full bg-primary rounded-t hover:bg-primary/80 cursor-pointer transition-colors"
+                      style={{ height: `${height * 1.8}px` }}
+                      title={`${
+                        trend.month
+                      }: $${trend.revenue.toLocaleString()}`}
+                    />
+                    <span className="text-xs font-medium">{trend.month}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-6 pt-4 border-t grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-sm text-muted-foreground">Avg Monthly</p>
+                <p className="text-xl font-bold">
+                  $
+                  {(
+                    mockAnalytics.bookingTrends.reduce(
+                      (sum, t) => sum + t.revenue,
+                      0
+                    ) /
+                    mockAnalytics.bookingTrends.length /
+                    1000
+                  ).toFixed(0)}
+                  K
                 </p>
-              )}
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Best Month</p>
+                <p className="text-xl font-bold text-green-600">
+                  $
+                  {(
+                    Math.max(
+                      ...mockAnalytics.bookingTrends.map((t) => t.revenue)
+                    ) / 1000
+                  ).toFixed(0)}
+                  K
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Growth</p>
+                <p className="text-xl font-bold text-green-600">
+                  +{mockAnalytics.salesPerformance.thisMonth.growth}%
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

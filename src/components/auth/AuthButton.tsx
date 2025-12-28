@@ -1,9 +1,26 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { getSupabase } from "../../lib/supabaseClient";
 import { useAuth, type AuthUser } from "../../stores/useAuth";
 
 function classNames(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
+}
+
+// Modern gradient background for avatar
+const gradients = [
+  "from-violet-500 to-purple-500",
+  "from-blue-500 to-cyan-500",
+  "from-emerald-500 to-teal-500",
+  "from-orange-500 to-pink-500",
+  "from-rose-500 to-pink-500",
+];
+
+function getGradientFromEmail(email: string): string {
+  const hash = email
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return gradients[hash % gradients.length];
 }
 
 export default function AuthButton() {
@@ -72,7 +89,14 @@ export default function AuthButton() {
     };
   }, []);
 
-  const initials = (user?.name || user?.email || "").slice(0, 1).toUpperCase();
+  const initials = (user?.name || user?.email || "")
+    .split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  const gradient = user ? getGradientFromEmail(user.email) : gradients[0];
 
   async function handleSignOut() {
     try {
@@ -87,24 +111,35 @@ export default function AuthButton() {
       <div ref={menuRef} className="relative">
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="flex items-center gap-2 rounded-full border px-2 py-1.5 hover:bg-slate-50"
+          className="group flex items-center gap-3 rounded-full border border-slate-200 bg-white/80 backdrop-blur-sm px-3 py-1.5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300 hover:bg-white active:scale-95"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
         >
+          {/* User info - hidden on mobile */}
           <div className="hidden md:flex flex-col text-right leading-tight">
-            <span className="text-sm font-medium text-slate-900">
-              {user.name || user.email}
+            <span className="text-sm font-semibold text-slate-900">
+              {user.name || user.email?.split("@")[0]}
             </span>
             <span className="text-xs text-slate-500">{user.email}</span>
           </div>
-          <div
-            title={user.email}
-            className="h-9 w-9 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-semibold"
-          >
-            {initials}
+
+          {/* Avatar with gradient */}
+          <div className="relative">
+            <div
+              title={user.email}
+              className={`h-9 w-9 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-white text-sm shadow-md ring-2 ring-white transition-transform group-hover:scale-105`}
+            >
+              {initials}
+            </div>
+            {/* Online indicator */}
+            <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white shadow-sm" />
           </div>
+
+          {/* Chevron icon with animation */}
           <svg
-            className="ml-1 h-4 w-4 text-slate-500"
+            className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
+              menuOpen ? "rotate-180" : ""
+            }`}
             viewBox="0 0 20 20"
             fill="currentColor"
             aria-hidden
@@ -117,84 +152,123 @@ export default function AuthButton() {
           </svg>
         </button>
 
+        {/* Dropdown Menu with animation */}
         {menuOpen && (
           <div
             role="menu"
-            className="absolute right-0 mt-2 w-56 overflow-hidden rounded-md border bg-white p-1 text-sm shadow-lg ring-1 ring-black/5"
+            className="absolute right-0 mt-3 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white/95 backdrop-blur-xl shadow-2xl ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200"
           >
-            <div className="px-3 py-2 text-slate-500">
-              Signed in as
-              <div className="truncate font-medium text-slate-900">
-                {user.email}
+            {/* User Info Header */}
+            <div className="px-4 py-3 bg-gradient-to-br from-slate-50 to-slate-100/50 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`h-12 w-12 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center font-bold text-white text-base shadow-lg`}
+                >
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">
+                    {user.name || "User"}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {user.email}
+                  </p>
+                </div>
               </div>
             </div>
-            <div className="my-1 h-px bg-slate-100" />
-            <a
-              href="/profile"
-              role="menuitem"
-              className="flex w-full items-center gap-2 rounded px-3 py-2 text-left hover:bg-slate-50"
-            >
-              <svg
-                className="h-4 w-4 text-slate-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+
+            {/* Menu Items */}
+            <div className="p-2">
+              <a
+                href="/profile"
+                role="menuitem"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 group"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
-              <span>Profile</span>
-            </a>
-            <a
-              href="/settings"
-              role="menuitem"
-              className="flex w-full items-center gap-2 rounded px-3 py-2 text-left hover:bg-slate-50"
-            >
-              <svg
-                className="h-4 w-4 text-slate-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600 group-hover:bg-violet-200 transition-colors">
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium">Profile</div>
+                  <div className="text-xs text-slate-500">
+                    View your profile
+                  </div>
+                </div>
+              </a>
+
+              <a
+                href="/settings"
+                role="menuitem"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 group"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-              <span>Settings</span>
-            </a>
-            <div className="my-1 h-px bg-slate-100" />
-            <button
-              role="menuitem"
-              onClick={handleSignOut}
-              className="flex w-full items-center gap-2 rounded px-3 py-2 text-left hover:bg-slate-50"
-            >
-              <svg
-                className="h-4 w-4 text-slate-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600 group-hover:bg-blue-200 transition-colors">
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium">Settings</div>
+                  <div className="text-xs text-slate-500">
+                    Manage preferences
+                  </div>
+                </div>
+              </a>
+            </div>
+
+            {/* Divider */}
+            <div className="my-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+
+            {/* Sign Out */}
+            <div className="p-2">
+              <button
+                role="menuitem"
+                onClick={handleSignOut}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 group"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                />
-              </svg>
-              <span>Sign out</span>
-            </button>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 group-hover:bg-red-200 transition-colors">
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                  </svg>
+                </div>
+                <span className="font-medium">Sign out</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -205,9 +279,24 @@ export default function AuthButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="h-9 rounded-full border px-3 py-1.5 text-sm hover:bg-slate-50"
+        className="group relative h-10 px-6 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white text-sm font-semibold shadow-lg shadow-rose-500/30 transition-all duration-200 hover:shadow-xl hover:shadow-rose-500/40 hover:scale-105 active:scale-95"
       >
-        Log in
+        <span className="flex items-center gap-2">
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+            />
+          </svg>
+          Log in
+        </span>
       </button>
       {open && <AuthModal onClose={() => setOpen(false)} />}
     </>
@@ -217,6 +306,8 @@ export default function AuthButton() {
 function AuthModal({ onClose }: { onClose: () => void }) {
   const setUser = useAuth((s) => s.setUser);
   const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mounted, setMounted] = useState(false);
+
   let supabase: ReturnType<typeof getSupabase> | null = null;
   try {
     supabase = getSupabase();
@@ -229,6 +320,10 @@ function AuthModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -328,97 +423,286 @@ function AuthModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            {mode === "login"
-              ? "Log in to your account"
-              : "Create your account"}
-          </h2>
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
+      {/* Backdrop with blur */}
+      <div
+        className="fixed inset-0 bg-gradient-to-br from-slate-900/80 via-slate-900/70 to-slate-900/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative z-[10000] w-full max-w-md rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 my-auto">
+        {/* Header with gradient */}
+        <div className="relative overflow-hidden rounded-t-2xl bg-gradient-to-br from-rose-500 via-pink-500 to-purple-500 px-6 py-8">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjEiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-30 pointer-events-none" />
           <button
-            onClick={onClose}
-            className="h-8 w-8 rounded-full bg-slate-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-all hover:bg-white/30 hover:rotate-90 active:scale-90"
           >
-            ✕
-          </button>
-        </div>
-        <div className="mb-4 flex rounded-full bg-slate-100 p-1 text-sm">
-          <button
-            className={classNames(
-              "flex-1 rounded-full py-1.5",
-              mode === "login"
-                ? "bg-white shadow text-slate-900"
-                : "text-slate-500"
-            )}
-            onClick={() => setMode("login")}
-          >
-            Log in
-          </button>
-          <button
-            className={classNames(
-              "flex-1 rounded-full py-1.5",
-              mode === "signup"
-                ? "bg-white shadow text-slate-900"
-                : "text-slate-500"
-            )}
-            onClick={() => setMode("signup")}
-          >
-            Sign up
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {mode === "signup" && (
-            <div className="space-y-1">
-              <label className="text-sm text-slate-700">Full name</label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-rose-400"
-                placeholder="Jane Doe"
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
               />
-            </div>
-          )}
-          <div className="space-y-1">
-            <label className="text-sm text-slate-700">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-rose-400"
-              placeholder="you@example.com"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-sm text-slate-700">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-rose-400"
-              placeholder="••••••••"
-            />
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {message && <p className="text-sm text-emerald-600">{message}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-2 w-full rounded-lg bg-rose-500 py-2 text-sm font-medium text-white hover:bg-rose-600 disabled:opacity-60"
-          >
-            {loading
-              ? "Please wait…"
-              : mode === "login"
-              ? "Log in"
-              : "Create account"}
+            </svg>
           </button>
-        </form>
+          <div className="relative">
+            <div className="mb-2 inline-flex rounded-full bg-white/20 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-white">
+              {mode === "login" ? "Welcome back" : "Get started"}
+            </div>
+            <h2 className="text-2xl font-bold text-white">
+              {mode === "login"
+                ? "Login to your account"
+                : "Create your account"}
+            </h2>
+            <p className="mt-1 text-sm text-white/80">
+              {mode === "login"
+                ? "Enter your credentials to continue"
+                : "Start your journey with us today"}
+            </p>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          {/* Mode Toggle */}
+          <div className="mb-6 flex rounded-xl bg-slate-100 p-1 text-sm">
+            <button
+              type="button"
+              className={classNames(
+                "flex-1 rounded-lg py-2.5 font-medium transition-all duration-200",
+                mode === "login"
+                  ? "bg-white shadow-md text-slate-900"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+              onClick={() => {
+                setMode("login");
+                setError(null);
+                setMessage(null);
+              }}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              className={classNames(
+                "flex-1 rounded-lg py-2.5 font-medium transition-all duration-200",
+                mode === "signup"
+                  ? "bg-white shadow-md text-slate-900"
+                  : "text-slate-600 hover:text-slate-900"
+              )}
+              onClick={() => {
+                setMode("signup");
+                setError(null);
+                setMessage(null);
+              }}
+            >
+              Sign up
+            </button>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === "signup" && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700">
+                  Full name
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <svg
+                      className="h-5 w-5 text-slate-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-3 text-sm outline-none transition-all focus:border-rose-300 focus:ring-4 focus:ring-rose-100"
+                    placeholder="Jane Doe"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700">
+                Email address
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <svg
+                    className="h-5 w-5 text-slate-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-3 text-sm outline-none transition-all focus:border-rose-300 focus:ring-4 focus:ring-rose-100"
+                  placeholder="you@example.com"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700">
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <svg
+                    className="h-5 w-5 text-slate-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-3 text-sm outline-none transition-all focus:border-rose-300 focus:ring-4 focus:ring-rose-100"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            {/* Error/Success Messages */}
+            {error && (
+              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="flex gap-3">
+                  <svg
+                    className="h-5 w-5 text-red-500 flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {message && (
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="flex gap-3">
+                  <svg
+                    className="h-5 w-5 text-emerald-500 flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <p className="text-sm text-emerald-800">{message}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/30 transition-all duration-200 hover:shadow-xl hover:shadow-rose-500/40 hover:scale-[1.02] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+            >
+              {loading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-r from-rose-500 to-pink-500">
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                </div>
+              )}
+              <span className={loading ? "invisible" : ""}>
+                {mode === "login" ? "Login" : "Create account"}
+              </span>
+            </button>
+          </form>
+
+          {/* Footer */}
+          {mode === "login" && (
+            <p className="mt-4 text-center text-xs text-slate-500">
+              Protected by reCAPTCHA and subject to our{" "}
+              <a
+                href="#"
+                className="text-rose-600 hover:text-rose-700 font-medium"
+              >
+                Privacy Policy
+              </a>
+            </p>
+          )}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

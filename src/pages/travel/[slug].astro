@@ -1,6 +1,6 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import { allGroups } from '../../data/travelGroups';
+import Layout from "../../layouts/Layout.astro";
+import { allGroups } from "../../data/travelGroups";
 
 export async function getStaticPaths() {
   return allGroups.map((g) => ({ params: { slug: g.slug } }));
@@ -10,32 +10,963 @@ const { slug } = Astro.params;
 const group = allGroups.find((g) => g.slug === slug);
 
 if (!group) {
-  return Astro.redirect('/');
+  return Astro.redirect("/");
 }
+
+// Calculate duration
+const startDate = new Date(group.startDate);
+const endDate = new Date(group.endDate);
+const duration = Math.ceil(
+  (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+);
+
+// Mock additional images for gallery
+const galleryImages = [
+  group.coverUrl,
+  `https://picsum.photos/seed/${group.slug}-2/800/600`,
+  `https://picsum.photos/seed/${group.slug}-3/800/600`,
+  `https://picsum.photos/seed/${group.slug}-4/800/600`,
+  `https://picsum.photos/seed/${group.slug}-5/800/600`,
+];
+
+// Get similar trips (exclude current)
+const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
 ---
 
 <Layout>
-	<main style="max-width: 960px; margin: 0 auto; padding: 24px 16px;">
-		<a href="/" style="text-decoration: none; color: #2563eb;">← Back to groups</a>
-		<h1 style="margin: 12px 0 8px;">{group.title}</h1>
-		<p style="margin: 0; color: #4b5563;">{group.destination}</p>
-		<p style="margin: 6px 0 16px; color: #6b7280;">
-			{new Date(group.startDate).toLocaleDateString()} – {new Date(group.endDate).toLocaleDateString()} · ${group.priceUsd}
-		</p>
-		<div style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #fff;">
-			<img src={group.coverUrl} alt={group.title} style="width: 100%; height: auto; display: block;" />
-		</div>
-		<p style="margin: 16px 0 8px;">{group.shortDescription}</p>
-		<ul style="margin: 0; padding: 0; list-style: none; display: flex; gap: 8px; flexWrap: wrap;">
-			{group.tags.map((t) => (
-				<li style="background: #f3f4f6; padding: 4px 8px; border-radius: 999px; font-size: 12px;" title={t}>{t}</li>
-			))}
-		</ul>
-		<div style="margin-top: 16px; display: flex; gap: 12px; alignItems: center;">
-			<strong>{group.seatsLeft} seats left</strong>
-			<a href="#" style="text-decoration: none; background: #111827; color: #fff; padding: 10px 14px; border-radius: 8px;">Request to join</a>
-		</div>
-	</main>
+  <!-- Breadcrumb -->
+  <div class="bg-white border-b sticky top-[73px] z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3">
+      <a
+        href="/"
+        class="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-rose-600 transition-colors"
+      >
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"></path>
+        </svg>
+        Back to all trips
+      </a>
+    </div>
+  </div>
+
+  <!-- Hero Gallery -->
+  <div class="bg-slate-50">
+    <div class="max-w-7xl mx-auto px-4 py-6">
+      <div class="grid grid-cols-4 gap-2 h-[500px]">
+        <!-- Main large image -->
+        <div
+          class="col-span-4 md:col-span-2 row-span-2 rounded-2xl overflow-hidden"
+        >
+          <img
+            src={galleryImages[0]}
+            alt={group.title}
+            class="w-full h-full object-cover hover:scale-105 transition-transform duration-500 cursor-pointer"
+          />
+        </div>
+        <!-- Side images -->
+        {
+          galleryImages.slice(1, 5).map((img, i) => (
+            <div class="col-span-2 md:col-span-1 rounded-xl overflow-hidden hidden md:block">
+              <img
+                src={img}
+                alt={`${group.title} ${i + 2}`}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500 cursor-pointer"
+              />
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Left Column - Main Content -->
+      <div class="lg:col-span-2 space-y-8">
+        <!-- Title & Overview -->
+        <div>
+          <div class="flex flex-wrap gap-2 mb-4">
+            {
+              group.tags.map((tag) => (
+                <span class="px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-sm font-medium capitalize">
+                  {tag}
+                </span>
+              ))
+            }
+          </div>
+
+          <h1 class="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
+            {group.title}
+          </h1>
+
+          <div class="flex flex-wrap items-center gap-4 text-slate-600 mb-4">
+            <div class="flex items-center gap-2">
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                ></path>
+              </svg>
+              <span class="font-medium">{group.destination}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span>{duration} days</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <svg
+                class="w-5 h-5 text-yellow-500"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"
+                ></path>
+              </svg>
+              <span>4.9 (127 reviews)</span>
+            </div>
+          </div>
+
+          <p class="text-lg text-slate-700 leading-relaxed">
+            {group.shortDescription}
+          </p>
+        </div>
+
+        <!-- Quick Info Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div
+            class="border border-slate-200 rounded-xl p-4 hover:border-rose-300 transition-colors"
+          >
+            <div
+              class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3"
+            >
+              <svg
+                class="w-6 h-6 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                ></path>
+              </svg>
+            </div>
+            <div class="text-sm text-slate-600">Group Size</div>
+            <div class="text-lg font-bold text-slate-900">8-12 people</div>
+          </div>
+
+          <div
+            class="border border-slate-200 rounded-xl p-4 hover:border-rose-300 transition-colors"
+          >
+            <div
+              class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3"
+            >
+              <svg
+                class="w-6 h-6 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="text-sm text-slate-600">Age Range</div>
+            <div class="text-lg font-bold text-slate-900">25-45 years</div>
+          </div>
+
+          <div
+            class="border border-slate-200 rounded-xl p-4 hover:border-rose-300 transition-colors"
+          >
+            <div
+              class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-3"
+            >
+              <svg
+                class="w-6 h-6 text-purple-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+            </div>
+            <div class="text-sm text-slate-600">Activity Level</div>
+            <div class="text-lg font-bold text-slate-900">Moderate</div>
+          </div>
+        </div>
+
+        <!-- What's Included -->
+        <div class="border border-slate-200 rounded-2xl p-6">
+          <h2 class="text-2xl font-bold text-slate-900 mb-6">
+            What's Included
+          </h2>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="flex items-start gap-3">
+              <div
+                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
+              >
+                <svg
+                  class="w-4 h-4 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="font-semibold text-slate-900">Accommodation</div>
+                <div class="text-sm text-slate-600">
+                  {duration - 1} nights in shared rooms
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3">
+              <div
+                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
+              >
+                <svg
+                  class="w-4 h-4 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="font-semibold text-slate-900">Meals</div>
+                <div class="text-sm text-slate-600">
+                  Breakfast daily + 3 group dinners
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3">
+              <div
+                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
+              >
+                <svg
+                  class="w-4 h-4 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="font-semibold text-slate-900">Activities</div>
+                <div class="text-sm text-slate-600">
+                  All guided tours & experiences
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3">
+              <div
+                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
+              >
+                <svg
+                  class="w-4 h-4 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="font-semibold text-slate-900">Transportation</div>
+                <div class="text-sm text-slate-600">
+                  Airport transfers & local transport
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3">
+              <div
+                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
+              >
+                <svg
+                  class="w-4 h-4 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="font-semibold text-slate-900">Group Leader</div>
+                <div class="text-sm text-slate-600">
+                  Experienced local guide
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3">
+              <div
+                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
+              >
+                <svg
+                  class="w-4 h-4 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="font-semibold text-slate-900">24/7 Support</div>
+                <div class="text-sm text-slate-600">
+                  Emergency assistance included
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-6 border-t border-slate-200">
+            <div class="font-semibold text-slate-900 mb-2">Not Included:</div>
+            <div class="text-sm text-slate-600 space-y-1">
+              <div>• International flights</div>
+              <div>• Travel insurance (highly recommended)</div>
+              <div>• Personal expenses & souvenirs</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Itinerary -->
+        <div class="border border-slate-200 rounded-2xl p-6">
+          <h2 class="text-2xl font-bold text-slate-900 mb-6">
+            Day-by-Day Itinerary
+          </h2>
+          <div class="space-y-6">
+            {
+              Array.from({ length: Math.min(duration, 7) }).map((_, i) => (
+                <div class="flex gap-4">
+                  <div class="flex-shrink-0">
+                    <div class="w-10 h-10 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center">
+                      {i + 1}
+                    </div>
+                  </div>
+                  <div class="flex-1">
+                    <h3 class="font-bold text-slate-900 mb-2">
+                      {i === 0
+                        ? "Arrival & Welcome"
+                        : i === duration - 1
+                          ? "Departure Day"
+                          : `Day ${i + 1} Adventure`}
+                    </h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                      {i === 0
+                        ? "Airport pickup and transfer to accommodation. Welcome dinner with the group to meet your fellow travelers and trip leader."
+                        : i === duration - 1
+                          ? "Final breakfast together. Airport transfers and fond farewells. Take home memories that will last a lifetime."
+                          : `Full day of activities exploring ${group.destination}. Guided tours, local experiences, and free time to explore on your own.`}
+                    </p>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+
+        <!-- Meet Your Group -->
+        <div class="border border-slate-200 rounded-2xl p-6">
+          <h2 class="text-2xl font-bold text-slate-900 mb-2">
+            Meet Your Travel Companions
+          </h2>
+          <p class="text-slate-600 mb-6">
+            Real travelers who have joined this trip
+          </p>
+
+          <div class="flex flex-wrap gap-4 mb-6">
+            {
+              Array.from({ length: 6 }).map((_, i) => (
+                <div class="flex items-center gap-3 border border-slate-200 rounded-xl p-3 hover:border-rose-300 transition-colors">
+                  <img
+                    src={`https://i.pravatar.cc/150?img=${i + 10}`}
+                    alt={`Traveler ${i + 1}`}
+                    class="w-12 h-12 rounded-full"
+                  />
+                  <div>
+                    <div class="font-semibold text-slate-900 text-sm">
+                      Sarah M.
+                    </div>
+                    <div class="text-xs text-slate-600">From USA</div>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+
+          <div class="bg-rose-50 border border-rose-200 rounded-xl p-4">
+            <div class="flex items-start gap-3">
+              <div
+                class="w-10 h-10 bg-rose-500 rounded-full flex items-center justify-center flex-shrink-0"
+              >
+                <span class="text-white font-bold text-lg"
+                  >{group.seatsLeft}</span
+                >
+              </div>
+              <div>
+                <div class="font-bold text-slate-900">
+                  Only {group.seatsLeft} seats remaining!
+                </div>
+                <div class="text-sm text-slate-600">
+                  This trip is filling up fast. Reserve your spot today.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reviews -->
+        <div class="border border-slate-200 rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-slate-900">Traveler Reviews</h2>
+            <div class="flex items-center gap-2">
+              <svg
+                class="w-6 h-6 text-yellow-500"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"
+                ></path>
+              </svg>
+              <span class="text-2xl font-bold text-slate-900">4.9</span>
+              <span class="text-slate-600">(127 reviews)</span>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            {
+              Array.from({ length: 3 }).map((_, i) => (
+                <div class="border-b border-slate-200 last:border-0 pb-6 last:pb-0">
+                  <div class="flex items-start gap-3 mb-3">
+                    <img
+                      src={`https://i.pravatar.cc/150?img=${i + 20}`}
+                      alt="Reviewer"
+                      class="w-12 h-12 rounded-full"
+                    />
+                    <div>
+                      <div class="font-semibold text-slate-900">
+                        Emily Rodriguez
+                      </div>
+                      <div class="flex items-center gap-2 text-sm">
+                        <div class="flex gap-1">
+                          {Array.from({ length: 5 }).map(() => (
+                            <svg
+                              class="w-4 h-4 text-yellow-500"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          ))}
+                        </div>
+                        <span class="text-slate-500">• 2 months ago</span>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="text-slate-700 leading-relaxed">
+                    Amazing experience! The group was fantastic, our guide was
+                    knowledgeable and friendly, and the itinerary was perfectly
+                    balanced between activities and free time. Would highly
+                    recommend!
+                  </p>
+                </div>
+              ))
+            }
+          </div>
+
+          <button
+            class="w-full mt-6 py-3 border border-slate-300 rounded-xl text-slate-700 font-semibold hover:bg-slate-50 transition-colors"
+          >
+            Read all 127 reviews
+          </button>
+        </div>
+
+        <!-- FAQs -->
+        <div class="border border-slate-200 rounded-2xl p-6">
+          <h2 class="text-2xl font-bold text-slate-900 mb-6">
+            Frequently Asked Questions
+          </h2>
+          <div class="space-y-4">
+            <details
+              class="group border border-slate-200 rounded-xl p-4 hover:border-rose-300 transition-colors"
+            >
+              <summary
+                class="font-semibold text-slate-900 cursor-pointer flex items-center justify-between"
+              >
+                What's the cancellation policy?
+                <svg
+                  class="w-5 h-5 transition-transform group-open:rotate-180"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </summary>
+              <p class="mt-3 text-slate-600 text-sm leading-relaxed">
+                Free cancellation up to 30 days before departure. 50% refund for
+                cancellations 15-30 days before. No refund within 15 days of
+                departure. We recommend travel insurance.
+              </p>
+            </details>
+
+            <details
+              class="group border border-slate-200 rounded-xl p-4 hover:border-rose-300 transition-colors"
+            >
+              <summary
+                class="font-semibold text-slate-900 cursor-pointer flex items-center justify-between"
+              >
+                Can I join as a solo traveler?
+                <svg
+                  class="w-5 h-5 transition-transform group-open:rotate-180"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </summary>
+              <p class="mt-3 text-slate-600 text-sm leading-relaxed">
+                Absolutely! Over 70% of our travelers join solo. We'll match you
+                with a same-gender roommate or you can upgrade to a private room
+                for an additional fee.
+              </p>
+            </details>
+
+            <details
+              class="group border border-slate-200 rounded-xl p-4 hover:border-rose-300 transition-colors"
+            >
+              <summary
+                class="font-semibold text-slate-900 cursor-pointer flex items-center justify-between"
+              >
+                What fitness level is required?
+                <svg
+                  class="w-5 h-5 transition-transform group-open:rotate-180"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </summary>
+              <p class="mt-3 text-slate-600 text-sm leading-relaxed">
+                This trip is rated as moderate activity. You should be
+                comfortable walking 3-5 miles per day and participating in
+                outdoor activities. No special skills required.
+              </p>
+            </details>
+
+            <details
+              class="group border border-slate-200 rounded-xl p-4 hover:border-rose-300 transition-colors"
+            >
+              <summary
+                class="font-semibold text-slate-900 cursor-pointer flex items-center justify-between"
+              >
+                Do I need travel insurance?
+                <svg
+                  class="w-5 h-5 transition-transform group-open:rotate-180"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </summary>
+              <p class="mt-3 text-slate-600 text-sm leading-relaxed">
+                While not mandatory, we strongly recommend comprehensive travel
+                insurance covering medical emergencies, trip cancellation, and
+                lost luggage. We can recommend trusted providers.
+              </p>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column - Booking Card -->
+      <div class="lg:col-span-1">
+        <div class="sticky top-24">
+          <div
+            class="border-2 border-slate-200 rounded-2xl p-6 shadow-lg bg-white"
+          >
+            <!-- Price -->
+            <div class="mb-6">
+              <div class="flex items-baseline gap-2 mb-2">
+                <span class="text-4xl font-bold text-slate-900"
+                  >${group.priceUsd}</span
+                >
+                <span class="text-slate-600">per person</span>
+              </div>
+              <div class="flex items-center gap-2 text-sm text-green-600">
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span>Best price guarantee</span>
+              </div>
+            </div>
+
+            <!-- Dates -->
+            <div class="mb-6 p-4 bg-slate-50 rounded-xl">
+              <div class="flex items-center gap-3 mb-3">
+                <svg
+                  class="w-5 h-5 text-slate-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  ></path>
+                </svg>
+                <div>
+                  <div class="text-xs text-slate-600">Departure Date</div>
+                  <div class="font-semibold text-slate-900">
+                    {
+                      new Date(group.startDate).toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    }
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <svg
+                  class="w-5 h-5 text-slate-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div>
+                  <div class="text-xs text-slate-600">Duration</div>
+                  <div class="font-semibold text-slate-900">
+                    {duration} days, {duration - 1} nights
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Seats Left Alert -->
+            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div class="flex items-start gap-3">
+                <svg
+                  class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  ></path>
+                </svg>
+                <div>
+                  <div class="font-bold text-red-900 text-sm">
+                    Only {group.seatsLeft} spots left!
+                  </div>
+                  <div class="text-xs text-red-700 mt-1">
+                    This trip is almost full. Book now to secure your spot.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CTA Buttons -->
+            <div class="space-y-3">
+              <button
+                class="w-full py-4 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                Reserve Your Spot
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 5l7 7-7 7"></path>
+                </svg>
+              </button>
+
+              <button
+                class="w-full py-4 border-2 border-slate-300 hover:border-slate-400 text-slate-900 font-semibold rounded-xl transition-colors"
+              >
+                Ask a Question
+              </button>
+            </div>
+
+            <!-- Trust Signals -->
+            <div class="mt-6 pt-6 border-t border-slate-200 space-y-3">
+              <div class="flex items-center gap-3 text-sm text-slate-600">
+                <svg
+                  class="w-5 h-5 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  ></path>
+                </svg>
+                <span>Secure payment processing</span>
+              </div>
+              <div class="flex items-center gap-3 text-sm text-slate-600">
+                <svg
+                  class="w-5 h-5 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  ></path>
+                </svg>
+                <span>Free cancellation (30 days)</span>
+              </div>
+              <div class="flex items-center gap-3 text-sm text-slate-600">
+                <svg
+                  class="w-5 h-5 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  ></path>
+                </svg>
+                <span>24/7 customer support</span>
+              </div>
+            </div>
+
+            <!-- Share -->
+            <div class="mt-6 pt-6 border-t border-slate-200">
+              <div class="flex items-center justify-between">
+                <button
+                  class="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-600 transition-colors"
+                >
+                  <svg
+                    class="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                    ></path>
+                  </svg>
+                  Share trip
+                </button>
+                <button
+                  class="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-600 transition-colors"
+                >
+                  <svg
+                    class="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    ></path>
+                  </svg>
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Similar Trips -->
+  {
+    similarTrips.length > 0 && (
+      <div class="bg-slate-50 py-16 px-4">
+        <div class="max-w-7xl mx-auto">
+          <h2 class="text-3xl font-bold text-slate-900 mb-8">
+            Similar Adventures
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {similarTrips.map((trip) => (
+              <a href={`/travel/${trip.slug}`} class="group">
+                <div class="rounded-2xl overflow-hidden bg-white border border-slate-200 hover:shadow-xl transition-all hover:-translate-y-1">
+                  <div class="relative aspect-[4/3] overflow-hidden">
+                    <img
+                      src={trip.coverUrl}
+                      alt={trip.title}
+                      class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                    {trip.seatsLeft <= 5 && (
+                      <span class="absolute top-4 left-4 px-3 py-1 rounded-full bg-red-500 text-white text-xs font-semibold">
+                        Only {trip.seatsLeft} seats left!
+                      </span>
+                    )}
+                  </div>
+                  <div class="p-5">
+                    <h3 class="text-xl font-bold text-slate-900 group-hover:text-rose-600 transition-colors mb-2">
+                      {trip.title}
+                    </h3>
+                    <div class="flex items-center gap-2 text-sm text-slate-600 mb-3">
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                        />
+                      </svg>
+                      <span>{trip.destination}</span>
+                    </div>
+                    <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+                      <div class="text-2xl font-bold text-slate-900">
+                        ${trip.priceUsd}
+                      </div>
+                      <div class="text-sm text-slate-600">
+                        {new Date(trip.startDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 </Layout>
-
-

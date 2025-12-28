@@ -1,31 +1,201 @@
 ---
 import AuthButton from "../auth/AuthButton.tsx";
+import { Button } from "../ui/button";
+import { Separator } from "../ui/separator";
 
 const isHomePage = Astro.url.pathname === "/";
+const currentPath = Astro.url.pathname;
 ---
 
-<header class="w-full border-b bg-white">
-  <div
-    class="max-w-[1200px] mx-auto px-4 py-4 flex items-center justify-between"
-  >
-    <!-- Logo at the front -->
-    <a href="/" class="flex items-center gap-2">
-      <div class="text-rose-500 font-black text-xl">◯</div>
-      <span class="font-semibold">wandra</span>
-    </a>
+<header
+  class="w-full border-b bg-white/95 backdrop-blur-md sticky top-0 z-50 shadow-sm"
+>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Main Navigation Bar -->
+    <div class="flex items-center justify-between h-16">
+      <!-- Logo & Brand -->
+      <div class="flex items-center gap-8">
+        <a href="/" class="flex items-center gap-2 group">
+          <div
+            class="text-rose-500 font-black text-2xl group-hover:scale-110 transition-transform"
+          >
+            ◯
+          </div>
+          <span class="font-bold text-lg tracking-tight">wandra</span>
+        </a>
 
-    <!-- Actions at the back -->
-    <div class="flex items-center gap-3">
-      <!-- Create listing button - only show when logged in -->
-      <a
-        href="/listing/create"
-        id="create-listing-btn"
-        class="hidden text-sm rounded-full border px-4 py-2 hover:bg-slate-50 transition-colors"
-        >Create listing</a
-      >
+        <!-- Desktop Navigation Links -->
+        <nav class="hidden lg:flex items-center gap-1">
+          <a
+            href="/"
+            class={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              currentPath === "/"
+                ? "text-rose-600 bg-rose-50"
+                : "text-slate-700 hover:text-rose-600 hover:bg-slate-50"
+            }`}
+          >
+            Explore
+          </a>
+          <!-- <a
+            href="/travel"
+            class={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              currentPath.startsWith("/travel") 
+                ? "text-rose-600 bg-rose-50" 
+                : "text-slate-700 hover:text-rose-600 hover:bg-slate-50"
+            }`}
+          >
+            Travel Groups
+          </a> -->
+          <!-- <a
+            href="/listing/create"
+            id="nav-create-listing"
+            class="hidden px-4 py-2 text-sm font-medium text-slate-700 hover:text-rose-600 hover:bg-slate-50 rounded-md transition-colors"
+          >
+            Host
+          </a> -->
+        </nav>
+      </div>
 
-      <!-- Auth button -->
-      <AuthButton client:load />
+      <!-- Right Side Actions -->
+      <div class="flex items-center gap-3">
+        <!-- Search Icon (Mobile/Tablet) -->
+        <button
+          id="mobile-search-btn"
+          class="lg:hidden p-2 text-slate-600 hover:text-rose-600 hover:bg-slate-50 rounded-full transition-colors"
+          aria-label="Search"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </button>
+
+        <Separator orientation="vertical" className="h-6 hidden sm:block" />
+
+        <!-- Create Listing Button (Desktop) -->
+        <a
+          href="/listing/create"
+          id="create-listing-btn"
+          class="hidden text-sm font-medium text-slate-700 hover:text-rose-600 transition-colors"
+        >
+          Create Listing
+        </a>
+
+        <!-- Become Agent (for non-agents) -->
+        <!-- <a
+          href="/become-agent"
+          id="become-agent-btn"
+          class="hidden text-sm font-medium px-4 py-2 rounded-full border border-slate-300 hover:border-rose-500 hover:text-rose-600 transition-all"
+        >
+          Become an Agent
+        </a> -->
+
+        <!-- CRM Access (for agents) -->
+        <a
+          href="/crm"
+          id="crm-access-btn"
+          class="hidden text-sm font-medium px-4 py-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 text-white hover:from-rose-600 hover:to-pink-700 transition-all shadow-sm"
+        >
+          CRM Dashboard
+        </a>
+
+        <!-- Auth Button -->
+        <AuthButton client:load />
+
+        <!-- Mobile Menu Button -->
+        <button
+          id="mobile-menu-btn"
+          class="lg:hidden p-2 text-slate-600 hover:text-rose-600 hover:bg-slate-50 rounded-md transition-colors"
+          aria-label="Menu"
+        >
+          <svg
+            id="menu-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+          <svg
+            id="close-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6 hidden"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="lg:hidden hidden border-t">
+      <nav class="py-4 space-y-1">
+        <a
+          href="/"
+          class={`block px-4 py-3 text-base font-medium rounded-md transition-colors ${
+            currentPath === "/"
+              ? "text-rose-600 bg-rose-50"
+              : "text-slate-700 hover:text-rose-600 hover:bg-slate-50"
+          }`}
+        >
+          Explore Destinations
+        </a>
+        <a
+          href="/travel"
+          class={`block px-4 py-3 text-base font-medium rounded-md transition-colors ${
+            currentPath.startsWith("/travel")
+              ? "text-rose-600 bg-rose-50"
+              : "text-slate-700 hover:text-rose-600 hover:bg-slate-50"
+          }`}
+        >
+          Travel Groups
+        </a>
+        <a
+          href="/listing/create"
+          id="mobile-create-listing"
+          class="hidden block px-4 py-3 text-base font-medium text-slate-700 hover:text-rose-600 hover:bg-slate-50 rounded-md transition-colors"
+        >
+          Host Your Property
+        </a>
+        <div class="pt-2 mt-2 border-t">
+          <a
+            href="/become-agent"
+            id="mobile-become-agent"
+            class="hidden block px-4 py-3 text-base font-medium text-slate-700 hover:text-rose-600 hover:bg-slate-50 rounded-md transition-colors"
+          >
+            Become an Agent
+          </a>
+          <a
+            href="/crm"
+            id="mobile-crm-access"
+            class="hidden block px-4 py-3 text-base font-medium text-rose-600 bg-rose-50 rounded-md transition-colors"
+          >
+            CRM Dashboard
+          </a>
+        </div>
+      </nav>
     </div>
   </div>
 </header>
@@ -33,60 +203,88 @@ const isHomePage = Astro.url.pathname === "/";
 <script>
   import { useAuth } from "../../stores/useAuth";
 
-  // Show create listing button only when user is logged in
-  function updateCreateListingButton() {
-    const createListingBtn = document.getElementById("create-listing-btn");
-    const user = useAuth.getState().user;
+  // Mobile menu toggle
+  const mobileMenuBtn = document.getElementById("mobile-menu-btn");
+  const mobileMenu = document.getElementById("mobile-menu");
+  const menuIcon = document.getElementById("menu-icon");
+  const closeIcon = document.getElementById("close-icon");
 
-    if (createListingBtn) {
-      if (user) {
-        createListingBtn.classList.remove("hidden");
-        createListingBtn.classList.add("md:inline-block");
+  mobileMenuBtn?.addEventListener("click", () => {
+    mobileMenu?.classList.toggle("hidden");
+    menuIcon?.classList.toggle("hidden");
+    closeIcon?.classList.toggle("hidden");
+  });
+
+  // Update UI based on auth state
+  function updateHeaderUI() {
+    const user = useAuth.getState().user;
+    const isAgent = false;
+
+    // Desktop elements
+    const createListingBtn = document.getElementById("create-listing-btn");
+    const navCreateListing = document.getElementById("nav-create-listing");
+    const becomeAgentBtn = document.getElementById("become-agent-btn");
+    const crmAccessBtn = document.getElementById("crm-access-btn");
+
+    // Mobile elements
+    const mobileCreateListing = document.getElementById(
+      "mobile-create-listing"
+    );
+    const mobileBecomeAgent = document.getElementById("mobile-become-agent");
+    const mobileCrmAccess = document.getElementById("mobile-crm-access");
+
+    if (user) {
+      // Show create listing options
+      createListingBtn?.classList.remove("hidden");
+      createListingBtn?.classList.add("sm:inline-block");
+      navCreateListing?.classList.remove("hidden");
+      navCreateListing?.classList.add("inline-block");
+      mobileCreateListing?.classList.remove("hidden");
+
+      if (isAgent) {
+        // User is an agent - show CRM access, hide become agent
+        becomeAgentBtn?.classList.add("hidden");
+        mobileBecomeAgent?.classList.add("hidden");
+        crmAccessBtn?.classList.remove("hidden");
+        crmAccessBtn?.classList.add("inline-block");
+        mobileCrmAccess?.classList.remove("hidden");
       } else {
-        createListingBtn.classList.add("hidden");
-        createListingBtn.classList.remove("md:inline-block");
+        // User is not an agent - show become agent, hide CRM
+        becomeAgentBtn?.classList.remove("hidden");
+        becomeAgentBtn?.classList.add("sm:inline-block");
+        mobileBecomeAgent?.classList.remove("hidden");
+        crmAccessBtn?.classList.add("hidden");
+        mobileCrmAccess?.classList.add("hidden");
       }
+    } else {
+      // Not logged in - hide everything except become agent
+      createListingBtn?.classList.add("hidden");
+      navCreateListing?.classList.add("hidden");
+      mobileCreateListing?.classList.add("hidden");
+      becomeAgentBtn?.classList.add("hidden");
+      mobileBecomeAgent?.classList.add("hidden");
+      crmAccessBtn?.classList.add("hidden");
+      mobileCrmAccess?.classList.add("hidden");
     }
   }
 
   // Run on page load
-  updateCreateListingButton();
+  updateHeaderUI();
 
   // Subscribe to auth state changes
-  const unsubscribe = useAuth.subscribe((state) => {
-    updateCreateListingButton();
+  const unsubscribe = useAuth.subscribe(() => {
+    updateHeaderUI();
   });
 
   // Cleanup on navigation
   document.addEventListener("astro:before-swap", () => {
     unsubscribe();
   });
+
+  // Close mobile menu on navigation
+  document.addEventListener("astro:after-swap", () => {
+    mobileMenu?.classList.add("hidden");
+    menuIcon?.classList.remove("hidden");
+    closeIcon?.classList.add("hidden");
+  });
 </script>
-<!-- Search bar - only show on homepage -->
-{
-  isHomePage && (
-    <div class="px-4 pb-4">
-      <div class="max-w-[1200px] mx-auto">
-        <div class="mx-auto rounded-full bg-white shadow-[0_10px_25px_-10px_rgba(0,0,0,0.25)] border border-slate-200 overflow-hidden flex items-stretch max-w-[840px]">
-          <div class="flex-1 px-5 py-3">
-            <div class="text-[12px] text-slate-700">Where</div>
-            <div class="text-[13px] text-slate-400">Search destinations</div>
-          </div>
-          <div class="w-px bg-slate-200 my-2" />
-          <div class="flex-1 px-5 py-3 hidden sm:block">
-            <div class="text-[12px] text-slate-700">When</div>
-            <div class="text-[13px] text-slate-400">Add dates</div>
-          </div>
-          <div class="w-px bg-slate-200 my-2 hidden sm:block" />
-          <div class="flex-1 px-5 py-3">
-            <div class="text-[12px] text-slate-700">Who</div>
-            <div class="text-[13px] text-slate-400">Add guests</div>
-          </div>
-          <button class="m-1 mr-2 my-2 h-10 w-10 rounded-full bg-rose-500 text-white flex items-center justify-center">
-            🔍
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}

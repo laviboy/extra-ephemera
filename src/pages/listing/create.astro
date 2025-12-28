@@ -1,16 +1,271 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import CreateListingForm from '../../components/listings/CreateListingForm.tsx';
+import Layout from "../../layouts/Layout.astro";
+import CreateListingForm from "../../components/listings/CreateListingForm.tsx";
 ---
 
 <Layout>
-	<main class="max-w-[960px] mx-auto px-4 py-8">
-		<h1 class="text-[24px] font-semibold">Create a new listing</h1>
-		<p class="text-slate-600 text-sm mt-1">Fill in the details below. This is a mock form; on submit we log the payload.</p>
-		<div class="mt-6 rounded-xl border border-slate-200 p-5 bg-white">
-			<CreateListingForm client:idle />
-		</div>
-	</main>
+  <div class="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <!-- Hero Section -->
+    <div
+      class="bg-gradient-to-r from-rose-50 via-pink-50 to-orange-50 border-b border-slate-200"
+    >
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="max-w-3xl">
+          <!-- Breadcrumb -->
+          <nav class="flex items-center gap-2 text-sm text-slate-600 mb-4">
+            <a href="/" class="hover:text-rose-600 transition-colors">Home</a>
+            <span>/</span>
+            <span class="text-slate-900 font-medium">Create Listing</span>
+          </nav>
+
+          <!-- Title -->
+          <h1 class="text-4xl font-bold text-slate-900 mb-3">
+            List Your Listing
+          </h1>
+          <p class="text-lg text-slate-600">
+            Share your amazing space with travelers from around the world.
+            Complete the form below to create your listing and start welcoming
+            guests.
+          </p>
+
+          <!-- Stats/Features -->
+          <div class="mt-8 flex flex-wrap gap-6">
+            <div class="flex items-center gap-2">
+              <div
+                class="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 text-rose-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-900">Quick Setup</p>
+                <p class="text-xs text-slate-600">Just 5 minutes</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <div
+                class="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 text-rose-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-900">Secure</p>
+                <p class="text-xs text-slate-600">Protected bookings</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <div
+                class="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 text-rose-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-900">Global Reach</p>
+                <p class="text-xs text-slate-600">Worldwide travelers</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Section -->
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Main Form -->
+        <div class="lg:col-span-8">
+          <CreateListingForm client:idle />
+        </div>
+
+        <!-- Sidebar Tips -->
+        <aside class="lg:col-span-4 space-y-6">
+          <!-- Tips Card -->
+          <div
+            class="sticky top-24 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm"
+          >
+            <div class="flex items-center gap-2 mb-4">
+              <div
+                class="h-8 w-8 rounded-full bg-rose-100 flex items-center justify-center"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-4 w-4 text-rose-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                  ></path>
+                </svg>
+              </div>
+              <h3 class="font-semibold text-slate-900">Hosting Tips</h3>
+            </div>
+
+            <div class="space-y-4">
+              <div class="flex gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                  <div
+                    class="h-6 w-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold"
+                  >
+                    1
+                  </div>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-slate-900">
+                    Great photos attract guests
+                  </p>
+                  <p class="text-xs text-slate-600 mt-1">
+                    Use high-quality images showing your best features
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                  <div
+                    class="h-6 w-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold"
+                  >
+                    2
+                  </div>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-slate-900">
+                    Detailed descriptions
+                  </p>
+                  <p class="text-xs text-slate-600 mt-1">
+                    Include amenities, nearby attractions, and unique features
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                  <div
+                    class="h-6 w-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold"
+                  >
+                    3
+                  </div>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-slate-900">
+                    Competitive pricing
+                  </p>
+                  <p class="text-xs text-slate-600 mt-1">
+                    Research similar listing in your area
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                  <div
+                    class="h-6 w-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xs font-bold"
+                  >
+                    4
+                  </div>
+                </div>
+                <div>
+                  <p class="text-sm font-medium text-slate-900">
+                    Update availability
+                  </p>
+                  <p class="text-xs text-slate-600 mt-1">
+                    Keep your calendar current to avoid double bookings
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Support Card -->
+          <div
+            class="bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl p-6 text-white shadow-lg"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+                ></path>
+              </svg>
+              <h3 class="font-semibold">Need Help?</h3>
+            </div>
+            <p class="text-sm text-white/90 mb-4">
+              Our support team is here to help you get started with your
+              listing.
+            </p>
+            <a
+              href="/support"
+              class="inline-flex items-center text-sm font-medium bg-white text-rose-600 px-4 py-2 rounded-full hover:bg-rose-50 transition-colors"
+            >
+              Contact Support
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4 ml-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5l7 7-7 7"></path>
+              </svg>
+            </a>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
 </Layout>
-
-

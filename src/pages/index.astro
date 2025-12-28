@@ -1,36 +1,653 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import Hero from "../components/marketing/Hero.astro";
-import FeaturedGroups from "../components/marketing/FeaturedGroups.tsx";
-import SplitFeatures from "../components/marketing/SplitFeatures.astro";
-import LocationsStrip from "../components/marketing/LocationsStrip.astro";
-import FreshOnMarket from "../components/marketing/FreshOnMarket.tsx";
-import Testimonials from "../components/marketing/Testimonials.astro";
-import StatsBar from "../components/marketing/StatsBar.astro";
-import Insights from "../components/marketing/Insights.astro";
-import CTA from "../components/marketing/CTA.astro";
 import {
   trendingGroups,
   lastMinuteGroups,
   budgetFriendlyGroups,
   allGroups,
 } from "../data/travelGroups";
-import FreshListings from "../components/marketing/FreshListings";
+import { popularKualaLumpur } from "../data/listings";
 ---
 
 <Layout>
-  <Hero />
-  <FreshListings client:only="react" title="Latest listings" />
-  <FeaturedGroups
-    id="featured"
-    title="Top picks this week"
-    groups={trendingGroups}
-  />
-  <SplitFeatures />
-  <LocationsStrip />
-  <FreshOnMarket title="Fresh on the market" groups={allGroups} />
-  <Testimonials />
-  <StatsBar />
-  <Insights />
-  <CTA />
+  <!-- Hero Section with Gradient Overlay -->
+  <section class="relative h-[50vh] min-h-[600px] overflow-hidden">
+    <div
+      class="absolute inset-0 bg-gradient-to-br from-rose-900/90 via-purple-900/80 to-slate-900/90 z-10"
+    >
+    </div>
+    <img
+      src="https://picsum.photos/seed/hero-modern/1920/1080"
+      alt="Travel Adventure"
+      class="absolute inset-0 w-full h-full object-cover"
+    />
+    <div
+      class="relative z-20 h-full flex flex-col items-center justify-center px-4 text-white"
+    >
+      <div
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-6"
+      >
+        <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+        <span class="text-sm font-medium">Join 12,450+ travelers worldwide</span
+        >
+      </div>
+
+      <h1
+        class="text-5xl md:text-7xl font-bold text-center max-w-4xl leading-tight mb-6"
+      >
+        Travel Together,<br />Create Forever Memories
+      </h1>
+
+      <p class="text-xl md:text-2xl text-center max-w-2xl text-white/90 mb-8">
+        Curated group adventures. Split costs, make friends, explore the world.
+      </p>
+
+      <!-- Search Bar -->
+      <div
+        class="w-full max-w-3xl bg-white rounded-2xl md:rounded-full shadow-2xl p-2 flex flex-col md:flex-row gap-2"
+      >
+        <div class="flex-1 flex items-center px-4 py-3 md:py-2 rounded-xl md:rounded-none hover:bg-slate-50 transition-colors">
+          <svg
+            class="w-5 h-5 text-slate-400 mr-3 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+            ></path>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+          <input
+            type="text"
+            placeholder="Where do you want to go?"
+            class="flex-1 outline-none text-slate-900 placeholder:text-slate-400 bg-transparent min-w-0"
+          />
+        </div>
+        <div class="hidden md:block w-px bg-slate-200 self-stretch my-2"></div>
+        <div class="flex-1 flex items-center px-4 py-3 md:py-2 rounded-xl md:rounded-none hover:bg-slate-50 transition-colors">
+          <svg
+            class="w-5 h-5 text-slate-400 mr-3 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            ></path>
+          </svg>
+          <input
+            type="text"
+            placeholder="When?"
+            class="flex-1 outline-none text-slate-900 placeholder:text-slate-400 bg-transparent min-w-0"
+          />
+        </div>
+        <button
+          class="bg-rose-500 hover:bg-rose-600 active:scale-95 text-white px-8 py-3.5 md:py-3 rounded-xl md:rounded-full font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-500/30"
+        >
+          <span>Search</span>
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Quick Filters -->
+      <div class="flex flex-wrap gap-3 mt-6 justify-center">
+        <a
+          href="#trending"
+          class="px-5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-colors text-sm font-medium"
+        >
+          🔥 Trending
+        </a>
+        <a
+          href="#last-minute"
+          class="px-5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-colors text-sm font-medium"
+        >
+          ⚡ Last Minute
+        </a>
+        <a
+          href="#budget"
+          class="px-5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 transition-colors text-sm font-medium"
+        >
+          💰 Budget Friendly
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust Bar -->
+  <section class="border-b bg-slate-50 py-8">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+        <div>
+          <div class="text-3xl font-bold text-slate-900">12,450+</div>
+          <div class="text-sm text-slate-600 mt-1">Happy Travelers</div>
+        </div>
+        <div>
+          <div class="text-3xl font-bold text-slate-900">250+</div>
+          <div class="text-sm text-slate-600 mt-1">Destinations</div>
+        </div>
+        <div>
+          <div class="text-3xl font-bold text-slate-900">4.9★</div>
+          <div class="text-sm text-slate-600 mt-1">Average Rating</div>
+        </div>
+        <div>
+          <div class="text-3xl font-bold text-slate-900">100%</div>
+          <div class="text-sm text-slate-600 mt-1">Verified Groups</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trending Adventures -->
+  <section id="trending" class="py-16 px-4">
+    <div class="max-w-7xl mx-auto">
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <div
+            class="inline-flex items-center gap-2 text-rose-600 font-semibold text-sm mb-2"
+          >
+            <span>🔥</span>
+            <span>TRENDING NOW</span>
+          </div>
+          <h2 class="text-3xl md:text-4xl font-bold text-slate-900">
+            Most Popular Adventures
+          </h2>
+          <p class="text-slate-600 mt-2">
+            Join these hot trips before seats run out
+          </p>
+        </div>
+        <a
+          href="/travel"
+          class="hidden md:flex items-center gap-2 text-rose-600 font-semibold hover:gap-3 transition-all"
+        >
+          View all
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5l7 7-7 7"></path>
+          </svg>
+        </a>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {
+          trendingGroups.map((group) => (
+            <a href={`/travel/${group.slug}`} class="group">
+              <div class="rounded-2xl overflow-hidden bg-white border border-slate-200 hover:shadow-xl transition-all hover:-translate-y-1">
+                <div class="relative aspect-[4/3] overflow-hidden">
+                  <img
+                    src={group.coverUrl}
+                    alt={group.title}
+                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div class="absolute top-4 left-4 flex gap-2">
+                    {group.seatsLeft <= 5 && (
+                      <span class="px-3 py-1 rounded-full bg-red-500 text-white text-xs font-semibold">
+                        Only {group.seatsLeft} seats left!
+                      </span>
+                    )}
+                    {group.tags[0] && (
+                      <span class="px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm text-slate-900 text-xs font-semibold">
+                        {group.tags[0]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div class="p-5">
+                  <div class="flex items-start justify-between mb-2">
+                    <h3 class="text-xl font-bold text-slate-900 group-hover:text-rose-600 transition-colors">
+                      {group.title}
+                    </h3>
+                  </div>
+                  <div class="flex items-center gap-2 text-sm text-slate-600 mb-3">
+                    <svg
+                      class="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                      />
+                    </svg>
+                    <span>{group.destination}</span>
+                  </div>
+                  <p class="text-slate-600 text-sm mb-4 line-clamp-2">
+                    {group.shortDescription}
+                  </p>
+                  <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+                    <div class="flex items-center gap-2 text-sm text-slate-600">
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                      <span>
+                        {new Date(group.startDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-2xl font-bold text-slate-900">
+                        ${group.priceUsd}
+                      </div>
+                      <div class="text-xs text-slate-500">per person</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Last Minute Deals -->
+  <section
+    id="last-minute"
+    class="py-16 px-4 bg-gradient-to-br from-amber-50 to-orange-50"
+  >
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12">
+        <div
+          class="inline-flex items-center gap-2 text-orange-600 font-semibold text-sm mb-2"
+        >
+          <span>⚡</span>
+          <span>DEPARTING SOON</span>
+        </div>
+        <h2 class="text-3xl md:text-4xl font-bold text-slate-900">
+          Last Minute Adventures
+        </h2>
+        <p class="text-slate-600 mt-2 max-w-2xl mx-auto">
+          Pack your bags! These trips are leaving soon with amazing discounts
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {
+          lastMinuteGroups.map((group) => (
+            <a href={`/travel/${group.slug}`} class="group">
+              <div class="rounded-2xl overflow-hidden bg-white border-2 border-orange-200 hover:border-orange-400 hover:shadow-xl transition-all">
+                <div class="flex flex-col sm:flex-row">
+                  <div class="relative sm:w-64 aspect-[4/3] sm:aspect-auto overflow-hidden">
+                    <img
+                      src={group.coverUrl}
+                      alt={group.title}
+                      class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                    <div class="absolute top-4 right-4">
+                      <span class="px-3 py-1 rounded-full bg-orange-500 text-white text-xs font-bold animate-pulse">
+                        URGENT
+                      </span>
+                    </div>
+                  </div>
+                  <div class="flex-1 p-6">
+                    <h3 class="text-2xl font-bold text-slate-900 mb-2 group-hover:text-orange-600 transition-colors">
+                      {group.title}
+                    </h3>
+                    <div class="flex items-center gap-2 text-sm text-slate-600 mb-3">
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                        />
+                      </svg>
+                      <span>{group.destination}</span>
+                    </div>
+                    <p class="text-slate-600 mb-4">{group.shortDescription}</p>
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-3">
+                        <div class="text-3xl font-bold text-slate-900">
+                          ${group.priceUsd}
+                        </div>
+                        <div class="flex flex-col text-xs">
+                          <span class="text-slate-500 line-through">
+                            $1,190
+                          </span>
+                          <span class="text-green-600 font-semibold">
+                            Save 25%
+                          </span>
+                        </div>
+                      </div>
+                      <div class="text-right">
+                        <div class="text-sm font-semibold text-orange-600">
+                          Departs{" "}
+                          {new Date(group.startDate).toLocaleDateString(
+                            "en-US",
+                            { month: "short", day: "numeric" }
+                          )}
+                        </div>
+                        <div class="text-xs text-slate-500">
+                          {group.seatsLeft} seats left
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Budget Friendly -->
+  <section id="budget" class="py-16 px-4">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12">
+        <div
+          class="inline-flex items-center gap-2 text-green-600 font-semibold text-sm mb-2"
+        >
+          <span>💰</span>
+          <span>BEST VALUE</span>
+        </div>
+        <h2 class="text-3xl md:text-4xl font-bold text-slate-900">
+          Budget-Friendly Escapes
+        </h2>
+        <p class="text-slate-600 mt-2 max-w-2xl mx-auto">
+          Amazing experiences without breaking the bank
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {
+          budgetFriendlyGroups.map((group) => (
+            <a href={`/travel/${group.slug}`} class="group">
+              <div class="rounded-2xl overflow-hidden bg-white border border-slate-200 hover:shadow-xl transition-all hover:-translate-y-1">
+                <div class="flex flex-col sm:flex-row">
+                  <div class="relative sm:w-64 aspect-[4/3] sm:aspect-auto overflow-hidden">
+                    <img
+                      src={group.coverUrl}
+                      alt={group.title}
+                      class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                  </div>
+                  <div class="flex-1 p-6">
+                    <div class="flex items-start justify-between mb-2">
+                      <h3 class="text-xl font-bold text-slate-900 group-hover:text-green-600 transition-colors">
+                        {group.title}
+                      </h3>
+                      <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold whitespace-nowrap ml-2">
+                        Great Deal
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-slate-600 mb-3">
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                        />
+                      </svg>
+                      <span>{group.destination}</span>
+                    </div>
+                    <p class="text-slate-600 text-sm mb-4">
+                      {group.shortDescription}
+                    </p>
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+                      <div>
+                        <div class="text-2xl font-bold text-slate-900">
+                          ${group.priceUsd}
+                        </div>
+                        <div class="text-xs text-slate-500">
+                          7 days included
+                        </div>
+                      </div>
+                      <div class="text-right text-sm text-slate-600">
+                        {new Date(group.startDate).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Featured Listings -->
+  <section class="py-16 px-4 bg-slate-50">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl md:text-4xl font-bold text-slate-900">
+          Popular Stays in Malaysia
+        </h2>
+        <p class="text-slate-600 mt-2">
+          Handpicked accommodations loved by travelers
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {
+          popularKualaLumpur.slice(0, 4).map((listing) => (
+            <a href={`/listing/${listing.id}`} class="group">
+              <div class="rounded-2xl overflow-hidden bg-white hover:shadow-xl transition-all hover:-translate-y-1">
+                <div class="relative aspect-square overflow-hidden">
+                  <img
+                    src={listing.imageUrl}
+                    alt={listing.title}
+                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  {listing.isGuestFavorite && (
+                    <div class="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full p-2">
+                      <svg
+                        class="w-5 h-5 text-rose-500"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div class="p-4">
+                  <h3 class="font-semibold text-slate-900 mb-1 group-hover:text-rose-600 transition-colors">
+                    {listing.title}
+                  </h3>
+                  <p class="text-sm text-slate-600 mb-2">{listing.subtitle}</p>
+                  <div class="flex items-center justify-between">
+                    <span class="font-semibold text-slate-900">
+                      {listing.priceText.split("·")[0]}
+                    </span>
+                    <span class="text-sm text-slate-600">
+                      ★ {listing.priceText.split("·")[1]}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Why Choose Us -->
+  <section class="py-16 px-4">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl md:text-4xl font-bold text-slate-900">
+          Why Travel With Us?
+        </h2>
+        <p class="text-slate-600 mt-2">More than just a booking platform</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="text-center p-6">
+          <div
+            class="w-16 h-16 bg-rose-100 rounded-2xl flex items-center justify-center mx-auto mb-4"
+          >
+            <svg
+              class="w-8 h-8 text-rose-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+              ></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-900 mb-2">Curated Groups</h3>
+          <p class="text-slate-600">
+            Every trip is vetted. Travel with like-minded adventurers in small,
+            quality groups.
+          </p>
+        </div>
+
+        <div class="text-center p-6">
+          <div
+            class="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4"
+          >
+            <svg
+              class="w-8 h-8 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              ></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-900 mb-2">100% Secure</h3>
+          <p class="text-slate-600">
+            Book with confidence. Verified hosts, secure payments, and 24/7
+            support.
+          </p>
+        </div>
+
+        <div class="text-center p-6">
+          <div
+            class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4"
+          >
+            <svg
+              class="w-8 h-8 text-purple-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              ></path>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-900 mb-2">Best Prices</h3>
+          <p class="text-slate-600">
+            Split costs means lower prices. Get more value from your travel
+            budget.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="py-20 px-4 bg-gradient-to-br from-rose-600 to-purple-700">
+    <div class="max-w-4xl mx-auto text-center text-white">
+      <h2 class="text-4xl md:text-5xl font-bold mb-4">
+        Ready for Your Next Adventure?
+      </h2>
+      <p class="text-xl text-white/90 mb-8">
+        Join thousands of travelers discovering the world together
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a
+          href="/travel"
+          class="px-8 py-4 bg-white text-rose-600 rounded-full font-semibold text-lg hover:bg-slate-100 transition-colors inline-flex items-center justify-center gap-2"
+        >
+          Browse All Trips
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5l7 7-7 7"></path>
+          </svg>
+        </a>
+        <a
+          href="/listing/create"
+          class="px-8 py-4 bg-white/10 backdrop-blur-sm text-white border-2 border-white rounded-full font-semibold text-lg hover:bg-white/20 transition-colors"
+        >
+          Create Your Trip
+        </a>
+      </div>
+    </div>
+  </section>
 </Layout>
