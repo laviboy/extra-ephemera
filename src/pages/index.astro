@@ -20,6 +20,7 @@ import FreshListings from "../components/marketing/FreshListings";
 
 <Layout>
   <Hero />
+  <FreshListings client:only="react" title="Latest listings" />
   <FeaturedGroups
     id="featured"
     title="Top picks this week"
@@ -28,7 +29,6 @@ import FreshListings from "../components/marketing/FreshListings";
   <SplitFeatures />
   <LocationsStrip />
   <FreshOnMarket title="Fresh on the market" groups={allGroups} />
-  <FreshListings client:only="react" title="Latest listings" />
   <Testimonials />
   <StatsBar />
   <Insights />
