@@ -116,9 +116,16 @@ export function TravelBookingsList() {
     }
   };
 
-  const statusConfig: Record<string, { label: string; variant: any }> = {
+  const statusConfig: Record<
+    string,
+    { label: string; variant: any; className?: string }
+  > = {
     pending: { label: "Pending", variant: "secondary" },
-    accepted: { label: "Accepted", variant: "default" },
+    accepted: {
+      label: "Accepted",
+      variant: "default",
+      className: "bg-green-600 hover:bg-green-700 text-white",
+    },
     hold: { label: "On Hold", variant: "default" },
     deposit_pending: { label: "Deposit Pending", variant: "secondary" },
     confirmed: { label: "Confirmed", variant: "default" },
@@ -228,6 +235,7 @@ export function TravelBookingsList() {
                           </h3>
                           <Badge
                             variant={statusConfig[booking.status]?.variant}
+                            className={statusConfig[booking.status]?.className}
                           >
                             {statusConfig[booking.status]?.label}
                           </Badge>
@@ -237,7 +245,9 @@ export function TravelBookingsList() {
                           <div>
                             <span className="text-slate-600">Traveler:</span>
                             <span className="ml-2 font-medium">
-                              {booking.traveler?.email || "Unknown"}
+                              {booking.traveler?.full_name ||
+                                booking.traveler?.email ||
+                                "Unknown"}
                             </span>
                           </div>
                           <div>
@@ -279,6 +289,31 @@ export function TravelBookingsList() {
 
                         {/* Action Buttons */}
                         <div className="flex gap-2 mt-4">
+                          {booking.conversationId && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                (window.location.href = `/crm/messages?conversation=${booking.conversationId}`)
+                              }
+                              className="flex items-center gap-1"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                                />
+                              </svg>
+                              Chat
+                            </Button>
+                          )}
                           {booking.status === "pending" && (
                             <>
                               <Button
@@ -323,7 +358,7 @@ export function TravelBookingsList() {
                               size="sm"
                               variant="outline"
                               onClick={() =>
-                                (window.location.href = `/crm/conversations/${booking.conversationId}`)
+                                (window.location.href = `/crm/messages?conversation=${booking.conversationId}`)
                               }
                             >
                               Open Chat

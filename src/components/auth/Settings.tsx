@@ -38,6 +38,9 @@ import {
   EyeOff,
   Trash2,
   Plus,
+  Calendar,
+  Users,
+  MapPinned,
 } from "lucide-react";
 
 type SettingsSection =
@@ -46,7 +49,8 @@ type SettingsSection =
   | "address"
   | "notifications"
   | "security"
-  | "preferences";
+  | "preferences"
+  | "bookings";
 
 export default function Settings() {
   const user = useAuth((s) => s.user);
@@ -84,6 +88,9 @@ export default function Settings() {
     tripReminders: true,
     groupUpdates: true,
   });
+
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
 
   // Fetch user data from Supabase
   useEffect(() => {
@@ -132,6 +139,42 @@ export default function Settings() {
     fetchUserData();
   }, [user?.id]);
 
+  // Fetch travel bookings for travelers
+  useEffect(() => {
+    const fetchBookings = async () => {
+      if (!user?.id || profileData.role !== "traveler") return;
+
+      try {
+        setLoadingBookings(true);
+        const supabase = getSupabase();
+        const token = localStorage.getItem(
+          "sb-tomxahjmbfkcrfszuhpo-auth-token"
+        );
+
+        if (!token) return;
+
+        const { access_token } = JSON.parse(token);
+
+        const response = await fetch(`/api/travel-bookings?role=traveler`, {
+          headers: {
+            Authorization: `Bearer ${access_token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setBookings(data.bookings || []);
+        }
+      } catch (error) {
+        console.error("Error fetching bookings:", error);
+      } finally {
+        setLoadingBookings(false);
+      }
+    };
+
+    fetchBookings();
+  }, [user?.id, profileData.role]);
+
   if (!user) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -169,6 +212,15 @@ export default function Settings() {
       label: "Preferences",
       icon: <Globe className="h-4 w-4" />,
     },
+    ...(profileData.role === "traveler"
+      ? [
+          {
+            id: "bookings" as SettingsSection,
+            label: "Booking Details",
+            icon: <Calendar className="h-4 w-4" />,
+          },
+        ]
+      : []),
   ];
 
   const handleSave = async () => {
@@ -953,6 +1005,112 @@ export default function Settings() {
                       )}
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeSection === "bookings" && (
+              <Card className="shadow-lg border-2">
+                <div className="h-2 bg-gradient-to-r from-amber-500 to-orange-600"></div>
+                <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-md">
+                      <Calendar className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">Booking Details</CardTitle>
+                      <CardDescription>
+                        View and manage your travel group bookings
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {loadingBookings ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="h-8 w-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : bookings.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="flex justify-center mb-4">
+                        <div className="h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center">
+                          <Calendar className="h-8 w-8 text-amber-600" />
+                        </div>
+                      </div>
+                      <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                        No bookings yet
+                      </h3>
+                      <p className="text-slate-600 mb-6">
+                        Start exploring travel groups and book your next
+                        adventure!
+                      </p>
+                      <a href="/explore">
+                        <Button className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md">
+                          Explore Travel Groups
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                          <Users className="h-5 w-5 text-amber-500" />
+                          My Travel Bookings ({bookings.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-3">
+                        {bookings.map((booking) => (
+                          <a
+                            key={booking.id}
+                            href={`/travel-bookings/${booking.id}`}
+                            className="block group"
+                          >
+                            <div className="flex items-center justify-between rounded-xl border-2 border-slate-200 p-5 hover:border-amber-300 hover:bg-amber-50/30 transition-all">
+                              <div className="flex items-start gap-4 flex-1">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md flex-shrink-0">
+                                  <MapPinned className="h-6 w-6 text-white" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-semibold text-slate-900 truncate group-hover:text-amber-700 transition-colors">
+                                    {booking.listing?.title || "Travel Group"}
+                                  </h4>
+                                  <p className="text-sm text-slate-600 mt-1">
+                                    {booking.listing?.destination ||
+                                      "Destination"}
+                                  </p>
+                                  <div className="flex items-center gap-3 mt-2">
+                                    <Badge
+                                      className={`${
+                                        booking.status === "confirmed"
+                                          ? "bg-green-100 text-green-700"
+                                          : booking.status === "pending"
+                                          ? "bg-amber-100 text-amber-700"
+                                          : booking.status === "accepted"
+                                          ? "bg-blue-100 text-blue-700"
+                                          : booking.status === "rejected"
+                                          ? "bg-red-100 text-red-700"
+                                          : "bg-slate-100 text-slate-700"
+                                      } border-0`}
+                                    >
+                                      {booking.status}
+                                    </Badge>
+                                    <span className="text-xs text-slate-500">
+                                      Requested{" "}
+                                      {new Date(
+                                        booking.requestedAt || booking.createdAt
+                                      ).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <ArrowRight className="h-5 w-5 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

@@ -1,13 +1,5 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@supabase/supabase-js";
-import { db } from "../../../lib/db";
-import {
-  travelGroupBookings,
-  listings,
-  notifications,
-  conversations,
-} from "../../../db/schema";
-import { eq, and, desc } from "drizzle-orm";
 
 const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = import.meta.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -40,56 +32,81 @@ export const GET: APIRoute = async ({ request }) => {
     const role = url.searchParams.get("role"); // 'traveler' or 'agent'
     const status = url.searchParams.get("status"); // Filter by status
 
-    let query;
+    // Build Supabase query
+    let query = supabase
+      .from("travel_group_bookings")
+      .select(
+        `
+        *,
+        listing:listing_id (
+          id,
+          title,
+          creator_id,
+          listing_type,
+          location,
+          price,
+          image_url
+        ),
+        traveler:traveler_id (
+          id,
+          email,
+          name
+        )
+      `
+      )
+      .order("created_at", { ascending: false });
+
     if (role === "traveler") {
-      query = db
-        .select()
-        .from(travelGroupBookings)
-        .where(eq(travelGroupBookings.travelerId, user.id));
+      query = query.eq("traveler_id", user.id);
     } else if (role === "agent") {
-      query = db
-        .select()
-        .from(travelGroupBookings)
-        .where(eq(travelGroupBookings.agentId, user.id));
+      query = query.eq("agent_id", user.id);
     } else {
-      // Return both
-      query = db
-        .select()
-        .from(travelGroupBookings)
-        .where(
-          and(
-            eq(travelGroupBookings.travelerId, user.id),
-            eq(travelGroupBookings.agentId, user.id)
-          )
-        );
+      // Return both (bookings where user is either traveler or agent)
+      query = query.or(`traveler_id.eq.${user.id},agent_id.eq.${user.id}`);
     }
 
     if (status) {
-      query = query.where(eq(travelGroupBookings.status, status));
+      query = query.eq("status", status);
     }
 
-    const bookings = await query.orderBy(desc(travelGroupBookings.createdAt));
+    const { data: bookings, error: bookingsError } = await query;
 
-    // Fetch related listings
-    const bookingsWithListings = await Promise.all(
-      bookings.map(async (booking) => {
-        const [listing] = await db
-          .select()
-          .from(listings)
-          .where(eq(listings.id, booking.listingId))
-          .limit(1);
+    if (bookingsError) {
+      console.error("Error fetching bookings:", bookingsError);
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch bookings" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Fetch conversations for each booking
+    const bookingsWithConversations = await Promise.all(
+      (bookings || []).map(async (booking) => {
+        const { data: conversation } = await supabase
+          .from("conversations")
+          .select("id")
+          .eq("listing_id", booking.listing_id)
+          .eq("customer_id", booking.traveler_id)
+          .eq("agent_id", booking.agent_id)
+          .single();
 
         return {
           ...booking,
-          listing,
+          conversationId: conversation?.id,
         };
       })
     );
 
-    return new Response(JSON.stringify({ bookings: bookingsWithListings }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ bookings: bookingsWithConversations }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
     console.error("Error fetching bookings:", error);
     return new Response(JSON.stringify({ error: "Failed to fetch bookings" }), {
@@ -134,13 +151,13 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     // Get the listing to find the agent
-    const [listing] = await db
-      .select()
-      .from(listings)
-      .where(eq(listings.id, listingId))
-      .limit(1);
+    const { data: listing, error: listingError } = await supabase
+      .from("listings")
+      .select("id, title, creator_id")
+      .eq("id", listingId)
+      .single();
 
-    if (!listing) {
+    if (listingError || !listing) {
       return new Response(JSON.stringify({ error: "Listing not found" }), {
         status: 404,
         headers: { "Content-Type": "application/json" },
@@ -148,18 +165,14 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     // Check if user already has a booking for this listing
-    const existingBooking = await db
-      .select()
-      .from(travelGroupBookings)
-      .where(
-        and(
-          eq(travelGroupBookings.listingId, listingId),
-          eq(travelGroupBookings.travelerId, user.id)
-        )
-      )
-      .limit(1);
+    const { data: existingBooking } = await supabase
+      .from("travel_group_bookings")
+      .select("id")
+      .eq("listing_id", listingId)
+      .eq("traveler_id", user.id)
+      .single();
 
-    if (existingBooking.length > 0) {
+    if (existingBooking) {
       return new Response(
         JSON.stringify({
           error: "You already have a booking for this travel group",
@@ -172,31 +185,64 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     // Create the booking
-    const [booking] = await db
-      .insert(travelGroupBookings)
-      .values({
-        listingId,
-        travelerId: user.id,
-        agentId: listing.creatorId,
+    const { data: booking, error: bookingError } = await supabase
+      .from("travel_group_bookings")
+      .insert({
+        listing_id: listingId,
+        traveler_id: user.id,
+        agent_id: listing.creator_id,
         status: "pending",
-        travelerNotes,
-        requestedAt: new Date(),
+        traveler_notes: travelerNotes,
+        requested_at: new Date().toISOString(),
       })
-      .returning();
+      .select()
+      .single();
+
+    if (bookingError || !booking) {
+      console.error("Error creating booking:", bookingError);
+      return new Response(
+        JSON.stringify({ error: "Failed to create booking" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Create a conversation between traveler and agent
+    const conversationId = `conv_${booking.id}_${Date.now()}`;
+    const { error: convError } = await supabase.from("conversations").insert({
+      id: conversationId,
+      customer_id: user.id,
+      agent_id: listing.creator_id,
+      listing_id: listing.id,
+      type: "booking",
+      subject: `Travel Group: ${listing.title}`,
+      last_message: travelerNotes || "Booking request",
+      last_message_at: new Date().toISOString(),
+    });
+
+    if (convError) {
+      console.error("Error creating conversation:", convError);
+    }
 
     // Create a notification for the agent
-    await db.insert(notifications).values({
-      userId: listing.creatorId,
+    const { error: notifError } = await supabase.from("notifications").insert({
+      user_id: listing.creator_id,
       type: "booking_request",
       title: "New Booking Request",
       message: `${user.email} wants to join your travel group: ${listing.title}`,
-      relatedId: booking.id,
-      relatedType: "booking",
-      actionUrl: `/crm/bookings/${booking.id}`,
+      related_id: booking.id,
+      related_type: "booking",
+      action_url: `/crm/bookings/${booking.id}`,
       read: false,
     });
 
-    return new Response(JSON.stringify({ booking }), {
+    if (notifError) {
+      console.error("Error creating notification:", notifError);
+    }
+
+    return new Response(JSON.stringify({ booking, conversationId }), {
       status: 201,
       headers: { "Content-Type": "application/json" },
     });

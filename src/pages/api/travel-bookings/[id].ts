@@ -1,14 +1,5 @@
 import type { APIRoute } from "astro";
 import { createClient } from "@supabase/supabase-js";
-import { db } from "../../../lib/db";
-import {
-  travelGroupBookings,
-  listings,
-  notifications,
-  conversations,
-  messages,
-} from "../../../db/schema";
-import { eq, and } from "drizzle-orm";
 
 const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = import.meta.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -45,13 +36,26 @@ export const GET: APIRoute = async ({ params, request }) => {
       });
     }
 
-    const [booking] = await db
-      .select()
-      .from(travelGroupBookings)
-      .where(eq(travelGroupBookings.id, bookingId))
-      .limit(1);
+    const { data: booking, error: bookingError } = await supabase
+      .from("travel_group_bookings")
+      .select(
+        `
+        *,
+        listing:listing_id (
+          id,
+          title,
+          creator_id,
+          listing_type,
+          location,
+          price,
+          image_url
+        )
+      `
+      )
+      .eq("id", bookingId)
+      .single();
 
-    if (!booking) {
+    if (bookingError || !booking) {
       return new Response(JSON.stringify({ error: "Booking not found" }), {
         status: 404,
         headers: { "Content-Type": "application/json" },
@@ -59,42 +63,38 @@ export const GET: APIRoute = async ({ params, request }) => {
     }
 
     // Check if user is authorized to view this booking
-    if (booking.travelerId !== user.id && booking.agentId !== user.id) {
+    if (booking.traveler_id !== user.id && booking.agent_id !== user.id) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    // Fetch related listing
-    const [listing] = await db
-      .select()
-      .from(listings)
-      .where(eq(listings.id, booking.listingId))
-      .limit(1);
-
-    // Fetch conversation if exists
+    // Fetch conversation and messages if exists
     let conversation = null;
     let conversationMessages = [];
-    if (booking.conversationId) {
-      [conversation] = await db
-        .select()
-        .from(conversations)
-        .where(eq(conversations.id, booking.conversationId))
-        .limit(1);
+    if (booking.conversation_id) {
+      const { data: convData } = await supabase
+        .from("conversations")
+        .select("*")
+        .eq("id", booking.conversation_id)
+        .single();
 
-      conversationMessages = await db
-        .select()
-        .from(messages)
-        .where(eq(messages.conversationId, booking.conversationId))
-        .orderBy(messages.createdAt);
+      conversation = convData;
+
+      const { data: msgsData } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", booking.conversation_id)
+        .order("created_at", { ascending: true });
+
+      conversationMessages = msgsData || [];
     }
 
     return new Response(
       JSON.stringify({
         booking: {
           ...booking,
-          listing,
           conversation,
           messages: conversationMessages,
         },
@@ -148,13 +148,13 @@ export const PATCH: APIRoute = async ({ params, request }) => {
     const body = await request.json();
     const { status: newStatus, agentNotes, depositPaid } = body;
 
-    const [booking] = await db
-      .select()
-      .from(travelGroupBookings)
-      .where(eq(travelGroupBookings.id, bookingId))
-      .limit(1);
+    const { data: booking, error: bookingError } = await supabase
+      .from("travel_group_bookings")
+      .select("*")
+      .eq("id", bookingId)
+      .single();
 
-    if (!booking) {
+    if (bookingError || !booking) {
       return new Response(JSON.stringify({ error: "Booking not found" }), {
         status: 404,
         headers: { "Content-Type": "application/json" },
@@ -162,8 +162,8 @@ export const PATCH: APIRoute = async ({ params, request }) => {
     }
 
     // Only agent can update most statuses
-    const isAgent = booking.agentId === user.id;
-    const isTraveler = booking.travelerId === user.id;
+    const isAgent = booking.agent_id === user.id;
+    const isTraveler = booking.traveler_id === user.id;
 
     if (!isAgent && !isTraveler) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -174,7 +174,7 @@ export const PATCH: APIRoute = async ({ params, request }) => {
 
     // Prepare update data
     const updateData: any = {
-      updatedAt: new Date(),
+      updated_at: new Date().toISOString(),
     };
 
     if (newStatus) {
@@ -195,85 +195,87 @@ export const PATCH: APIRoute = async ({ params, request }) => {
       updateData.status = newStatus;
 
       if (newStatus === "accepted") {
-        updateData.acceptedAt = new Date();
-        // Create conversation between agent and traveler
-        const [conversation] = await db
-          .insert(conversations)
-          .values({
-            id: `conv_${bookingId}_${Date.now()}`,
-            customerId: booking.travelerId,
-            agentId: booking.agentId,
-            type: "booking",
-            subject: `Travel Group Booking #${bookingId}`,
-            lastMessageAt: new Date(),
-          })
-          .returning();
-
-        updateData.conversationId = conversation.id;
+        updateData.accepted_at = new Date().toISOString();
 
         // Notify traveler
-        await db.insert(notifications).values({
-          userId: booking.travelerId,
+        await supabase.from("notifications").insert({
+          user_id: booking.traveler_id,
           type: "booking_accepted",
           title: "Booking Accepted!",
           message:
             "Your travel group booking has been accepted. Please proceed with the deposit.",
-          relatedId: bookingId,
-          relatedType: "booking",
-          actionUrl: `/travel-bookings/${bookingId}`,
+          related_id: bookingId.toString(),
+          related_type: "booking",
+          action_url: `/travel-bookings/${bookingId}`,
+          read: false,
         });
       } else if (newStatus === "rejected") {
-        updateData.cancelledAt = new Date();
+        updateData.cancelled_at = new Date().toISOString();
         // Notify traveler
-        await db.insert(notifications).values({
-          userId: booking.travelerId,
+        await supabase.from("notifications").insert({
+          user_id: booking.traveler_id,
           type: "booking_rejected",
           title: "Booking Not Accepted",
           message: "Unfortunately, your travel group booking was not accepted.",
-          relatedId: bookingId,
-          relatedType: "booking",
-          actionUrl: `/travel-bookings/${bookingId}`,
+          related_id: bookingId.toString(),
+          related_type: "booking",
+          action_url: `/travel-bookings/${bookingId}`,
+          read: false,
         });
       } else if (newStatus === "confirmed") {
-        updateData.confirmedAt = new Date();
+        updateData.confirmed_at = new Date().toISOString();
         // Notify traveler
-        await db.insert(notifications).values({
-          userId: booking.travelerId,
+        await supabase.from("notifications").insert({
+          user_id: booking.traveler_id,
           type: "booking_confirmed",
           title: "Booking Confirmed!",
           message:
             "Your travel group booking is now confirmed. Get ready for your adventure!",
-          relatedId: bookingId,
-          relatedType: "booking",
-          actionUrl: `/travel-bookings/${bookingId}`,
+          related_id: bookingId.toString(),
+          related_type: "booking",
+          action_url: `/travel-bookings/${bookingId}`,
+          read: false,
         });
       } else if (newStatus === "deposit_pending") {
         // Notify agent
-        await db.insert(notifications).values({
-          userId: booking.agentId,
+        await supabase.from("notifications").insert({
+          user_id: booking.agent_id,
           type: "deposit_submitted",
           title: "Deposit Submitted",
           message: "A traveler has submitted their deposit payment.",
-          relatedId: bookingId,
-          relatedType: "booking",
-          actionUrl: `/crm/bookings/${bookingId}`,
+          related_id: bookingId.toString(),
+          related_type: "booking",
+          action_url: `/crm/bookings/${bookingId}`,
+          read: false,
         });
       }
     }
 
     if (agentNotes !== undefined && isAgent) {
-      updateData.agentNotes = agentNotes;
+      updateData.agent_notes = agentNotes;
     }
 
     if (depositPaid !== undefined && isAgent) {
-      updateData.depositPaid = depositPaid;
+      updateData.deposit_paid = depositPaid;
     }
 
-    const [updatedBooking] = await db
-      .update(travelGroupBookings)
-      .set(updateData)
-      .where(eq(travelGroupBookings.id, bookingId))
-      .returning();
+    const { data: updatedBooking, error: updateError } = await supabase
+      .from("travel_group_bookings")
+      .update(updateData)
+      .eq("id", bookingId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error("Error updating booking:", updateError);
+      return new Response(
+        JSON.stringify({ error: "Failed to update booking" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
     return new Response(JSON.stringify({ booking: updatedBooking }), {
       status: 200,

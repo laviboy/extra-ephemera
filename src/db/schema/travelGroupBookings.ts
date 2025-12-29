@@ -69,7 +69,7 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
 
   // Link to related entities
-  relatedId: integer("related_id"), // booking id, conversation id, etc.
+  relatedId: text("related_id"), // booking id, conversation id, etc.
   relatedType: text("related_type"), // 'booking', 'conversation', 'message'
   actionUrl: text("action_url"), // Where to navigate when clicked
 

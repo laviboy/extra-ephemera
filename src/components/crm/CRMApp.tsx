@@ -8,8 +8,6 @@ import { QueryClient } from "@tanstack/react-query";
 
 // CRM Pages
 import { CRMDashboard } from "./pages/Dashboard";
-import { ConversationList } from "./pages/conversations/List";
-import { ConversationShow } from "./pages/conversations/Show";
 import { BookingList } from "./pages/bookings/List";
 import { BookingCreate } from "./pages/bookings/Create";
 import { BookingEdit } from "./pages/bookings/Edit";
@@ -21,6 +19,7 @@ import { PackageList } from "./pages/packages/List";
 import { PackageCreate } from "./pages/packages/Create";
 import { PackageEdit } from "./pages/packages/Edit";
 import { TravelBookingsList } from "./pages/travel-bookings/List";
+import { ConversationsPage } from "./pages/conversations/Page";
 import { CRMLayout } from "./components/Layout";
 
 const queryClient = new QueryClient();
@@ -39,15 +38,6 @@ export function CRMApp() {
           warnWhenUnsavedChanges: true,
         }}
         resources={[
-          {
-            name: "conversations",
-            list: "/conversations",
-            show: "/conversations/:id",
-            meta: {
-              label: "Leads & Messages",
-              icon: "💬",
-            },
-          },
           {
             name: "bookings",
             list: "/bookings",
@@ -87,6 +77,14 @@ export function CRMApp() {
               icon: "✈️",
             },
           },
+          {
+            name: "messages",
+            list: "/messages",
+            meta: {
+              label: "Messages",
+              icon: "💬",
+            },
+          },
         ]}
       >
         <Routes>
@@ -99,18 +97,12 @@ export function CRMApp() {
           >
             <Route index element={<CRMDashboard />} />
 
-            {/* Conversations/Leads */}
-            <Route path="conversations">
-              <Route index element={<ConversationList />} />
-              <Route path=":id" element={<ConversationShow />} />
-            </Route>
-
             {/* Bookings */}
             <Route path="bookings">
               <Route index element={<BookingList />} />
               <Route path="create" element={<BookingCreate />} />
-              <Route path=":id" element={<BookingShow />} />
               <Route path=":id/edit" element={<BookingEdit />} />
+              <Route path=":id" element={<BookingShow />} />
             </Route>
 
             {/* Proposals */}
@@ -130,6 +122,11 @@ export function CRMApp() {
             {/* Travel Group Bookings */}
             <Route path="travel-bookings">
               <Route index element={<TravelBookingsList />} />
+            </Route>
+
+            {/* Messages/Chat */}
+            <Route path="messages">
+              <Route index element={<ConversationsPage />} />
             </Route>
           </Route>
         </Routes>
