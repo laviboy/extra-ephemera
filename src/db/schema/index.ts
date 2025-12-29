@@ -10,3 +10,4 @@ export * from "./bookings";
 export * from "./conversations";
 export * from "./proposals";
 export * from "./follows";
+export * from "./travelGroupBookings";

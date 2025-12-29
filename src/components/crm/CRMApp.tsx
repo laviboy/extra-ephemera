@@ -20,6 +20,7 @@ import { ProposalEdit } from "./pages/proposals/Edit";
 import { PackageList } from "./pages/packages/List";
 import { PackageCreate } from "./pages/packages/Create";
 import { PackageEdit } from "./pages/packages/Edit";
+import { TravelBookingsList } from "./pages/travel-bookings/List";
 import { CRMLayout } from "./components/Layout";
 
 const queryClient = new QueryClient();
@@ -78,6 +79,14 @@ export function CRMApp() {
               icon: "🎒",
             },
           },
+          {
+            name: "travel-bookings",
+            list: "/travel-bookings",
+            meta: {
+              label: "Travel Group Bookings",
+              icon: "✈️",
+            },
+          },
         ]}
       >
         <Routes>
@@ -116,6 +125,11 @@ export function CRMApp() {
               <Route index element={<PackageList />} />
               <Route path="create" element={<PackageCreate />} />
               <Route path=":id/edit" element={<PackageEdit />} />
+            </Route>
+
+            {/* Travel Group Bookings */}
+            <Route path="travel-bookings">
+              <Route index element={<TravelBookingsList />} />
             </Route>
           </Route>
         </Routes>

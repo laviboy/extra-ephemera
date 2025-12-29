@@ -2,68 +2,86 @@ import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../stores/useAuth";
 
 interface Notification {
-  id: string;
+  id: number;
   title: string;
   message: string;
-  timestamp: string;
+  createdAt: string;
   read: boolean;
-  type: "booking" | "message" | "review" | "system";
-  icon?: string;
+  type: string;
+  actionUrl?: string;
+  relatedId?: number;
+  relatedType?: string;
 }
-
-// Mock notifications
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    title: "New Booking Request",
-    message: "You have a new booking request for Villa Sunset Paradise",
-    timestamp: "2 minutes ago",
-    read: false,
-    type: "booking",
-  },
-  {
-    id: "2",
-    title: "New Message",
-    message: "Sarah Johnson sent you a message about your listing",
-    timestamp: "1 hour ago",
-    read: false,
-    type: "message",
-  },
-  {
-    id: "3",
-    title: "Review Posted",
-    message: "You received a 5-star review from Michael Chen",
-    timestamp: "3 hours ago",
-    read: false,
-    type: "review",
-  },
-  {
-    id: "4",
-    title: "Booking Confirmed",
-    message: "Your booking at Ocean View Resort has been confirmed",
-    timestamp: "1 day ago",
-    read: true,
-    type: "booking",
-  },
-  {
-    id: "5",
-    title: "Payment Received",
-    message: "Payment of $450 received for booking #12345",
-    timestamp: "2 days ago",
-    read: true,
-    type: "system",
-  },
-];
 
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] =
-    useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const user = useAuth((state) => state.user);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  // Fetch notifications on mount and when user changes
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch("/api/notifications");
+      if (response.ok) {
+        const { notifications: fetchedNotifications } = await response.json();
+        setNotifications(fetchedNotifications);
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const markAsRead = async (notificationId: number) => {
+    try {
+      await fetch(`/api/notifications/${notificationId}`, {
+        method: "PATCH",
+      });
+      // Update local state
+      setNotifications(
+        notifications.map((n) =>
+          n.id === notificationId ? { ...n, read: true } : n
+        )
+      );
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await fetch("/api/notifications/mark-all-read", {
+        method: "POST",
+      });
+      // Update local state
+      setNotifications(notifications.map((n) => ({ ...n, read: true })));
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+    }
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    markAsRead(notification.id);
+    if (notification.actionUrl) {
+      window.location.href = notification.actionUrl;
+    }
+    setIsOpen(false);
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -82,83 +100,90 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+  const getTypeIcon = (type: string) => {
+    if (type.includes("booking")) {
+      return (
+        <svg
+          className="w-5 h-5 text-blue-500"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+      );
+    }
+    if (type.includes("message")) {
+      return (
+        <svg
+          className="w-5 h-5 text-green-500"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+          />
+        </svg>
+      );
+    }
+    if (type.includes("deposit")) {
+      return (
+        <svg
+          className="w-5 h-5 text-purple-500"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+          />
+        </svg>
+      );
+    }
+    return (
+      <svg
+        className="w-5 h-5 text-slate-500"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
     );
   };
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
+  const formatTimestamp = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "booking":
-        return (
-          <svg
-            className="w-5 h-5 text-blue-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        );
-      case "message":
-        return (
-          <svg
-            className="w-5 h-5 text-green-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            />
-          </svg>
-        );
-      case "review":
-        return (
-          <svg
-            className="w-5 h-5 text-yellow-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
-            />
-          </svg>
-        );
-      default:
-        return (
-          <svg
-            className="w-5 h-5 text-slate-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        );
-    }
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60)
+      return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+    if (diffHours < 24)
+      return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+    return date.toLocaleDateString();
   };
 
   // Only show if user is logged in
@@ -216,7 +241,11 @@ export default function NotificationBell() {
 
           {/* Notification List */}
           <div className="max-h-[400px] overflow-y-auto">
-            {notifications.length === 0 ? (
+            {isLoading ? (
+              <div className="px-4 py-8 text-center text-slate-500">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500 mx-auto"></div>
+              </div>
+            ) : notifications.length === 0 ? (
               <div className="px-4 py-8 text-center text-slate-500">
                 <svg
                   className="w-12 h-12 mx-auto mb-2 text-slate-300"
@@ -237,7 +266,7 @@ export default function NotificationBell() {
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  onClick={() => markAsRead(notification.id)}
+                  onClick={() => handleNotificationClick(notification)}
                   className={`px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors border-b border-slate-100 last:border-b-0 ${
                     !notification.read ? "bg-rose-50/30" : ""
                   }`}
@@ -259,7 +288,7 @@ export default function NotificationBell() {
                         {notification.message}
                       </p>
                       <p className="text-xs text-slate-400 mt-1">
-                        {notification.timestamp}
+                        {formatTimestamp(notification.createdAt)}
                       </p>
                     </div>
                   </div>

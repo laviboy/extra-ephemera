@@ -2,6 +2,7 @@
 import Layout from "../../layouts/Layout.astro";
 import { allGroups } from "../../data/travelGroups";
 import { ImageGallery } from "../../components/ui/image-gallery";
+import { ReserveSpotButton } from "../../components/travel/ReserveSpotButton";
 
 export async function getStaticPaths() {
   return allGroups.map((g) => ({ params: { slug: g.slug } }));
@@ -12,6 +13,7 @@ let group = allGroups.find((g) => g.slug === slug || g.id === slug);
 let isDbListing = false;
 let listingImages: Array<{ id: string; url: string; caption?: string }> = [];
 let creator: { id: string; name: string | null; email: string; role: string } | null = null;
+let creatorId: string | null = null;
 
 // If not found in static groups, try fetching from API (for database listings)
 if (!group) {
@@ -23,6 +25,7 @@ if (!group) {
       if (dbListing) {
         isDbListing = true;
         creator = dbListing.creator || null;
+        creatorId = dbListing.creator_id || dbListing.creator?.id || null;
         
         // Transform database listing into group format with all fields
         group = {
@@ -983,29 +986,13 @@ const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
 
             <!-- CTA Buttons -->
             <div class="space-y-3">
-              <button
-                class="w-full py-4 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
-              >
-                Reserve Your Spot
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 5l7 7-7 7"></path>
-                </svg>
-              </button>
-
-              <button
-                class="w-full py-4 border-2 border-slate-300 hover:border-slate-400 text-slate-900 font-semibold rounded-xl transition-colors"
-              >
-                Ask a Question
-              </button>
+              <ReserveSpotButton 
+                client:load
+                listingId={group.id}
+                listingTitle={group.title}
+                availableSpots={group.availableSpots}
+                creatorId={creatorId}
+              />
             </div>
 
             <!-- Trust Signals -->

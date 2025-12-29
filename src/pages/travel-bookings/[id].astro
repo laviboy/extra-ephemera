@@ -1,0 +1,33 @@
+---
+import Layout from "../../layouts/Layout.astro";
+
+const { id } = Astro.params;
+---
+
+<Layout>
+  <div class="min-h-screen bg-slate-50 py-8">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div id="booking-detail-root" data-booking-id={id}></div>
+    </div>
+  </div>
+
+  <script>
+    import { BookingDetail } from "../../components/travel/BookingDetail";
+    import { createRoot } from "react-dom/client";
+    import { createElement } from "react";
+    import Providers from "../../components/providers/Providers";
+
+    const rootElement = document.getElementById("booking-detail-root");
+    if (rootElement) {
+      const bookingId = rootElement.getAttribute("data-booking-id");
+      const root = createRoot(rootElement);
+      root.render(
+        createElement(
+          Providers,
+          {},
+          createElement(BookingDetail, { bookingId: bookingId! })
+        )
+      );
+    }
+  </script>
+</Layout>
