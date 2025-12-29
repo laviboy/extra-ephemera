@@ -334,18 +334,23 @@ export function ChatView({ conversationId }: ChatViewProps) {
                         isOwn ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <span className="text-xs text-slate-400">
-                        {formatDistanceToNow(
-                          new Date(
+                      {(() => {
+                        try {
+                          const date = new Date(
                             msg.created_at.endsWith("Z")
                               ? msg.created_at
                               : msg.created_at + "Z"
-                          ),
-                          {
-                            addSuffix: true,
-                          }
-                        )}
-                      </span>
+                          );
+                          if (isNaN(date.getTime())) return null;
+                          return (
+                            <span className="text-xs text-slate-400">
+                              {formatDistanceToNow(date, { addSuffix: true })}
+                            </span>
+                          );
+                        } catch {
+                          return null;
+                        }
+                      })()}
                     </div>
                   </div>
 

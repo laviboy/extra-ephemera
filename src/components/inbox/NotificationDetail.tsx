@@ -122,16 +122,19 @@ export function NotificationDetail({ notification }: NotificationDetailProps) {
               <h2 className="text-2xl font-bold">{notification.title}</h2>
               <p className="text-white/80 flex items-center gap-2 mt-2 text-sm">
                 <Clock className="w-4 h-4" />
-                {formatDistanceToNow(
-                  new Date(
-                    notification.created_at.endsWith("Z")
-                      ? notification.created_at
-                      : notification.created_at + "Z"
-                  ),
-                  {
-                    addSuffix: true,
+                {(() => {
+                  try {
+                    const date = new Date(
+                      notification.created_at.endsWith("Z")
+                        ? notification.created_at
+                        : notification.created_at + "Z"
+                    );
+                    if (isNaN(date.getTime())) return "Recently";
+                    return formatDistanceToNow(date, { addSuffix: true });
+                  } catch {
+                    return "Recently";
                   }
-                )}
+                })()}
               </p>
             </div>
           </div>

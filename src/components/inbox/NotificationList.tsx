@@ -100,18 +100,23 @@ export function NotificationList({
                     {!notification.read && (
                       <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse" />
                     )}
-                    <span className="text-xs text-slate-400">
-                      {formatDistanceToNow(
-                        new Date(
+                    {(() => {
+                      try {
+                        const date = new Date(
                           notification.created_at.endsWith("Z")
                             ? notification.created_at
                             : notification.created_at + "Z"
-                        ),
-                        {
-                          addSuffix: true,
-                        }
-                      )}
-                    </span>
+                        );
+                        if (isNaN(date.getTime())) return null;
+                        return (
+                          <span className="text-xs text-slate-400">
+                            {formatDistanceToNow(date, { addSuffix: true })}
+                          </span>
+                        );
+                      } catch {
+                        return null;
+                      }
+                    })()}
                   </div>
                 </div>
                 <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">

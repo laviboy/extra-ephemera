@@ -110,20 +110,24 @@ export function ConversationList({
                         {conversation.unread_count}
                       </Badge>
                     )}
-                    {conversation.updated_at && (
-                      <span className="text-xs text-slate-400">
-                        {formatDistanceToNow(
-                          new Date(
+                    {conversation.updated_at &&
+                      (() => {
+                        try {
+                          const date = new Date(
                             conversation.updated_at.endsWith("Z")
                               ? conversation.updated_at
                               : conversation.updated_at + "Z"
-                          ),
-                          {
-                            addSuffix: true,
-                          }
-                        )}
-                      </span>
-                    )}
+                          );
+                          if (isNaN(date.getTime())) return null;
+                          return (
+                            <span className="text-xs text-slate-400">
+                              {formatDistanceToNow(date, { addSuffix: true })}
+                            </span>
+                          );
+                        } catch {
+                          return null;
+                        }
+                      })()}
                   </div>
                 </div>
                 {conversation.last_message && (

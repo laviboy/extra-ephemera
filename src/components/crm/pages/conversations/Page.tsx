@@ -275,18 +275,26 @@ export function ConversationsPage() {
                                   conversation.subject ||
                                   "Conversation"}
                               </h4>
-                              {conversation.updated_at && (
-                                <span className="text-xs text-slate-400 ml-2 flex-shrink-0">
-                                  {formatDistanceToNow(
-                                    new Date(
+                              {conversation.updated_at &&
+                                (() => {
+                                  try {
+                                    const date = new Date(
                                       conversation.updated_at.endsWith("Z")
                                         ? conversation.updated_at
                                         : conversation.updated_at + "Z"
-                                    ),
-                                    { addSuffix: true }
-                                  )}
-                                </span>
-                              )}
+                                    );
+                                    if (isNaN(date.getTime())) return null;
+                                    return (
+                                      <span className="text-xs text-slate-400 ml-2 flex-shrink-0">
+                                        {formatDistanceToNow(date, {
+                                          addSuffix: true,
+                                        })}
+                                      </span>
+                                    );
+                                  } catch {
+                                    return null;
+                                  }
+                                })()}
                             </div>
                             {conversation.last_message && (
                               <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
@@ -478,22 +486,31 @@ export function ConversationsPage() {
                                   isOwn ? "justify-end" : "justify-start"
                                 }`}
                               >
-                                <span
-                                  className={`text-xs ${
-                                    isOwn ? "text-slate-400" : "text-slate-400"
-                                  }`}
-                                >
-                                  {formatDistanceToNow(
-                                    new Date(
+                                {(() => {
+                                  try {
+                                    const date = new Date(
                                       msg.created_at.endsWith("Z")
                                         ? msg.created_at
                                         : msg.created_at + "Z"
-                                    ),
-                                    {
-                                      addSuffix: true,
-                                    }
-                                  )}
-                                </span>
+                                    );
+                                    if (isNaN(date.getTime())) return null;
+                                    return (
+                                      <span
+                                        className={`text-xs ${
+                                          isOwn
+                                            ? "text-slate-400"
+                                            : "text-slate-400"
+                                        }`}
+                                      >
+                                        {formatDistanceToNow(date, {
+                                          addSuffix: true,
+                                        })}
+                                      </span>
+                                    );
+                                  } catch {
+                                    return null;
+                                  }
+                                })()}
                               </div>
                             </div>
 
