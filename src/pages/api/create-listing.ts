@@ -34,11 +34,29 @@ export const POST: APIRoute = async ({ request }) => {
         title: body.title,
         destination: body.destination,
         description: body.description ?? null,
+        short_description: body.shortDescription ?? null,
         tags: Array.isArray(body.tags) ? body.tags : [],
         instant_bookable: body.instantBookable ?? false,
         price_min: body.priceMin ?? null,
         price_max: body.priceMax ?? null,
+        currency: body.currency ?? "USD",
         status: "draft",
+        // Travel group fields
+        start_date: body.startDate ?? null,
+        end_date: body.endDate ?? null,
+        max_group_size: body.maxGroupSize ?? 12,
+        available_spots: body.availableSpots ?? 10,
+        age_range_min: body.ageRangeMin ?? 18,
+        age_range_max: body.ageRangeMax ?? 65,
+        difficulty: body.difficulty ?? "moderate",
+        included_items: Array.isArray(body.includedItems)
+          ? body.includedItems
+          : [],
+        not_included_items: Array.isArray(body.notIncludedItems)
+          ? body.notIncludedItems
+          : [],
+        itinerary: Array.isArray(body.itinerary) ? body.itinerary : [],
+        cancellation_policy: body.cancellationPolicy ?? null,
       })
       .select()
       .single();

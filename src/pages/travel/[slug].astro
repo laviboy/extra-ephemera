@@ -1,13 +1,75 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import { allGroups } from "../../data/travelGroups";
+import { ImageGallery } from "../../components/ui/image-gallery";
 
 export async function getStaticPaths() {
   return allGroups.map((g) => ({ params: { slug: g.slug } }));
 }
 
 const { slug } = Astro.params;
-const group = allGroups.find((g) => g.slug === slug);
+let group = allGroups.find((g) => g.slug === slug || g.id === slug);
+let isDbListing = false;
+let listingImages: Array<{ id: string; url: string; caption?: string }> = [];
+let creator: { id: string; name: string | null; email: string; role: string } | null = null;
+
+// If not found in static groups, try fetching from API (for database listings)
+if (!group) {
+  try {
+    const response = await fetch(`${Astro.url.origin}/api/listings`);
+    if (response.ok) {
+      const { listings } = await response.json();
+      const dbListing = listings.find((l: any) => l.id === slug);
+      if (dbListing) {
+        isDbListing = true;
+        creator = dbListing.creator || null;
+        
+        // Transform database listing into group format with all fields
+        group = {
+          id: dbListing.id,
+          slug: dbListing.id,
+          title: dbListing.title,
+          destination: dbListing.destination || "Malaysia",
+          coverUrl: dbListing.first_image_url || `https://picsum.photos/seed/${encodeURIComponent(dbListing.id)}/800/600`,
+          description: dbListing.description || "Discover this amazing place",
+          shortDescription: dbListing.short_description || dbListing.description?.slice(0, 150) || "Discover this amazing place",
+          startDate: dbListing.start_date || new Date().toISOString(),
+          endDate: dbListing.end_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          priceUsd: dbListing.price_min || 99,
+          currency: dbListing.currency || "USD",
+          maxGroupSize: dbListing.max_group_size || 12,
+          availableSpots: dbListing.available_spots || 8,
+          seatsLeft: dbListing.available_spots || 8,
+          ageRangeMin: dbListing.age_range_min || 18,
+          ageRangeMax: dbListing.age_range_max || 65,
+          difficulty: dbListing.difficulty || "moderate" as const,
+          tags: dbListing.tags || ["adventure", "cultural"],
+          rating: dbListing.rating || 0,
+          reviewCount: dbListing.review_count || 0,
+          includedItems: dbListing.included_items || [],
+          notIncludedItems: dbListing.not_included_items || [],
+          itinerary: dbListing.itinerary || [],
+          cancellationPolicy: dbListing.cancellation_policy || "Free cancellation up to 30 days before departure."
+        } as any;
+
+        // Fetch images for this listing
+        try {
+          const imagesResponse = await fetch(
+            `${Astro.url.origin}/api/images?listingId=${slug}`
+          );
+          if (imagesResponse.ok) {
+            const { images } = await imagesResponse.json();
+            listingImages = images || [];
+          }
+        } catch (imgError) {
+          console.error("Error fetching images:", imgError);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching listing:", error);
+  }
+}
 
 if (!group) {
   return Astro.redirect("/");
@@ -20,14 +82,16 @@ const duration = Math.ceil(
   (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
 );
 
-// Mock additional images for gallery
-const galleryImages = [
-  group.coverUrl,
-  `https://picsum.photos/seed/${group.slug}-2/800/600`,
-  `https://picsum.photos/seed/${group.slug}-3/800/600`,
-  `https://picsum.photos/seed/${group.slug}-4/800/600`,
-  `https://picsum.photos/seed/${group.slug}-5/800/600`,
-];
+// Populate galleryImages with real images only
+const galleryImages = isDbListing && listingImages.length > 0
+  ? listingImages.map((img) => img.url)
+  : [
+      group.coverUrl,
+      `https://picsum.photos/seed/${group.slug}-2/800/600`,
+      `https://picsum.photos/seed/${group.slug}-3/800/600`,
+      `https://picsum.photos/seed/${group.slug}-4/800/600`,
+      `https://picsum.photos/seed/${group.slug}-5/800/600`,
+    ];
 
 // Get similar trips (exclude current)
 const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
@@ -62,31 +126,171 @@ const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
   <div class="bg-slate-50">
     <div class="max-w-7xl mx-auto px-4 py-6">
       <div class="grid grid-cols-4 gap-2 h-[500px]">
-        <!-- Main large image -->
-        <div
-          class="col-span-4 md:col-span-2 row-span-2 rounded-2xl overflow-hidden"
-        >
-          <img
-            src={galleryImages[0]}
-            alt={group.title}
-            class="w-full h-full object-cover hover:scale-105 transition-transform duration-500 cursor-pointer"
-          />
-        </div>
-        <!-- Side images -->
-        {
-          galleryImages.slice(1, 5).map((img, i) => (
-            <div class="col-span-2 md:col-span-1 rounded-xl overflow-hidden hidden md:block">
+        {galleryImages.length === 1 && (
+          <!-- Single image: Full width -->
+          <div class="col-span-4 rounded-2xl overflow-hidden cursor-pointer" onclick="window.openGallery(0)">
+            <img
+              src={galleryImages[0]}
+              alt={group.title}
+              class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+            />
+          </div>
+        )}
+
+        {galleryImages.length === 2 && (
+          <!-- 2 images: Side by side -->
+          <>
+            <div class="col-span-4 md:col-span-2 row-span-2 rounded-2xl overflow-hidden cursor-pointer" onclick="window.openGallery(0)">
               <img
-                src={img}
-                alt={`${group.title} ${i + 2}`}
-                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500 cursor-pointer"
+                src={galleryImages[0]}
+                alt={group.title}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
               />
             </div>
-          ))
-        }
+            <div class="col-span-4 md:col-span-2 row-span-2 rounded-2xl overflow-hidden cursor-pointer" onclick="window.openGallery(1)">
+              <img
+                src={galleryImages[1]}
+                alt={`${group.title} 2`}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+          </>
+        )}
+
+        {galleryImages.length === 3 && (
+          <!-- 3 images: Main + 2 stacked -->
+          <>
+            <div class="col-span-4 md:col-span-2 row-span-2 rounded-2xl overflow-hidden cursor-pointer" onclick="window.openGallery(0)">
+              <img
+                src={galleryImages[0]}
+                alt={group.title}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            <div class="col-span-2 md:col-span-1 rounded-xl overflow-hidden cursor-pointer" onclick="window.openGallery(1)">
+              <img
+                src={galleryImages[1]}
+                alt={`${group.title} 2`}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            <div class="col-span-2 md:col-span-1 rounded-xl overflow-hidden cursor-pointer" onclick="window.openGallery(2)">
+              <img
+                src={galleryImages[2]}
+                alt={`${group.title} 3`}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            <div class="col-span-2 md:col-span-1 hidden md:block"></div>
+          </>
+        )}
+
+        {galleryImages.length === 4 && (
+          <!-- 4 images: Main + 3 side -->
+          <>
+            <div class="col-span-4 md:col-span-2 row-span-2 rounded-2xl overflow-hidden cursor-pointer" onclick="window.openGallery(0)">
+              <img
+                src={galleryImages[0]}
+                alt={group.title}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            <div class="col-span-2 md:col-span-1 rounded-xl overflow-hidden cursor-pointer" onclick="window.openGallery(1)">
+              <img
+                src={galleryImages[1]}
+                alt={`${group.title} 2`}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            <div class="col-span-2 md:col-span-1 rounded-xl overflow-hidden cursor-pointer" onclick="window.openGallery(2)">
+              <img
+                src={galleryImages[2]}
+                alt={`${group.title} 3`}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            <div class="col-span-2 md:col-span-1 rounded-xl overflow-hidden cursor-pointer" onclick="window.openGallery(3)">
+              <img
+                src={galleryImages[3]}
+                alt={`${group.title} 4`}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            <div class="col-span-2 md:col-span-1 hidden md:block"></div>
+          </>
+        )}
+
+        {galleryImages.length >= 5 && (
+          <!-- 5+ images: Main + 4 side images -->
+          <>
+            <div class="col-span-4 md:col-span-2 row-span-2 rounded-2xl overflow-hidden cursor-pointer" onclick="window.openGallery(0)">
+              <img
+                src={galleryImages[0]}
+                alt={group.title}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+            {galleryImages.slice(1, 5).map((img, i) => (
+              <div class={`col-span-2 md:col-span-1 rounded-xl overflow-hidden ${i === 3 ? 'relative' : ''} cursor-pointer`} onclick={`window.openGallery(${i + 1})`}>
+                <img
+                  src={img}
+                  alt={`${group.title} ${i + 2}`}
+                  class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                />
+                {i === 3 && galleryImages.length > 5 && (
+                  <div class="absolute inset-0 bg-black/60 flex items-center justify-center hover:bg-black/70 transition-all">
+                    <span class="text-white text-xl font-semibold">
+                      +{galleryImages.length - 5} more
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   </div>
+
+  <!-- React Gallery Component - Hidden lightbox that opens on click -->
+  <div id="gallery-modal" style="position: fixed; top: -9999px; left: -9999px; visibility: hidden;">
+    <ImageGallery 
+      images={isDbListing && listingImages.length > 0 
+        ? listingImages 
+        : galleryImages.map((url, i) => ({ id: `img-${i}`, url, caption: `${group.title} ${i + 1}` }))
+      } 
+      client:only="react" 
+    />
+  </div>
+
+  <script is:inline>
+    // Global function to open gallery at specific index
+    window.openGallery = function(index) {
+      // Find and click the corresponding thumbnail in the ImageGallery component
+      const modal = document.getElementById('gallery-modal');
+      if (modal) {
+        // Make it visible temporarily to trigger the click
+        modal.style.visibility = 'visible';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        // Find and click the image at the specified index
+        setTimeout(() => {
+          const images = modal.querySelectorAll('button');
+          if (images[index]) {
+            images[index].click();
+            // Hide the grid again after triggering lightbox
+            setTimeout(() => {
+              const grid = modal.querySelector('.grid');
+              if (grid) {
+                grid.style.display = 'none';
+              }
+            }, 100);
+          }
+        }, 50);
+      }
+    };
+  </script>
 
   <!-- Main Content -->
   <div class="max-w-7xl mx-auto px-4 py-8">
@@ -183,7 +387,7 @@ const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
               </svg>
             </div>
             <div class="text-sm text-slate-600">Group Size</div>
-            <div class="text-lg font-bold text-slate-900">8-12 people</div>
+            <div class="text-lg font-bold text-slate-900">{group.maxGroupSize - 4}-{group.maxGroupSize} people</div>
           </div>
 
           <div
@@ -206,7 +410,7 @@ const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
               </svg>
             </div>
             <div class="text-sm text-slate-600">Age Range</div>
-            <div class="text-lg font-bold text-slate-900">25-45 years</div>
+            <div class="text-lg font-bold text-slate-900">{group.ageRangeMin || 18}-{group.ageRangeMax || 65} years</div>
           </div>
 
           <div
@@ -229,7 +433,7 @@ const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
               </svg>
             </div>
             <div class="text-sm text-slate-600">Activity Level</div>
-            <div class="text-lg font-bold text-slate-900">Moderate</div>
+            <div class="text-lg font-bold text-slate-900">{group.difficulty?.charAt(0).toUpperCase() + group.difficulty?.slice(1) || 'Moderate'}</div>
           </div>
         </div>
 
@@ -239,164 +443,162 @@ const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
             What's Included
           </h2>
           <div class="grid md:grid-cols-2 gap-4">
-            <div class="flex items-start gap-3">
-              <div
-                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
-              >
-                <svg
-                  class="w-4 h-4 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
-              <div>
-                <div class="font-semibold text-slate-900">Accommodation</div>
-                <div class="text-sm text-slate-600">
-                  {duration - 1} nights in shared rooms
+            {
+              (group.includedItems && group.includedItems.length > 0 ? group.includedItems : [
+                { title: "Accommodation", description: "Comfortable stays throughout the trip" },
+                { title: "Meals", description: "Daily breakfast and select dinners" },
+                { title: "Activities", description: "All planned activities and entrance fees" },
+                { title: "Transportation", description: "Ground transport and airport transfers" },
+                { title: "Guide", description: "Expert local guide throughout" },
+                { title: "Insurance", description: "Basic travel insurance coverage" }
+              ]).map((item: any) => (
+                <div class="flex items-start gap-3">
+                  <div
+                    class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
+                  >
+                    <svg
+                      class="w-4 h-4 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 13l4 4L19 7"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="font-semibold text-slate-900">{item.title}</div>
+                    <div class="text-sm text-slate-600">{item.description}</div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              ))
+            }
+          </div>
+        </div>
 
-            <div class="flex items-start gap-3">
-              <div
-                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
-              >
-                <svg
-                  class="w-4 h-4 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
-              <div>
-                <div class="font-semibold text-slate-900">Meals</div>
-                <div class="text-sm text-slate-600">
-                  Breakfast daily + 3 group dinners
+        <!-- What's Not Included -->
+        <div class="border border-slate-200 rounded-2xl p-6">
+          <h2 class="text-2xl font-bold text-slate-900 mb-6">
+            What's Not Included
+          </h2>
+          <div class="grid md:grid-cols-2 gap-4">
+            {
+              (group.notIncludedItems && group.notIncludedItems.length > 0 ? group.notIncludedItems : [
+                "International flights",
+                "Travel insurance",
+                "Personal expenses",
+                "Optional activities"
+              ]).map((item: string) => (
+                <div class="flex items-start gap-3">
+                  <div
+                    class="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5"
+                  >
+                    <svg
+                      class="w-4 h-4 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      ></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="font-semibold text-slate-900">{item}</div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              ))
+            }
+          </div>
+        </div>
 
-            <div class="flex items-start gap-3">
-              <div
-                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
-              >
-                <svg
-                  class="w-4 h-4 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
-              <div>
-                <div class="font-semibold text-slate-900">Activities</div>
-                <div class="text-sm text-slate-600">
-                  All guided tours & experiences
-                </div>
-              </div>
-            </div>
+        <!-- Meet Your Host -->
+        <div class="border border-slate-200 rounded-2xl p-6">
+          <h2 class="text-2xl font-bold text-slate-900 mb-2">
+            Meet Your Host
+          </h2>
+          <p class="text-slate-600 mb-6">
+            {creator ? `Hosted by ${creator.name || creator.email}` : "Hosted by Adventure Leaders"}
+          </p>
 
-            <div class="flex items-start gap-3">
-              <div
-                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
-              >
-                <svg
-                  class="w-4 h-4 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
-              <div>
-                <div class="font-semibold text-slate-900">Transportation</div>
-                <div class="text-sm text-slate-600">
-                  Airport transfers & local transport
-                </div>
-              </div>
+          <div class="flex items-start gap-6 mb-6">
+            <div class="flex-shrink-0">
+              {creator ? (
+                <a href={`/profile/${creator.id}`}>
+                  <div class="w-24 h-24 rounded-full bg-gradient-to-br from-rose-400 to-pink-600 flex items-center justify-center text-white font-bold text-3xl border-4 border-slate-200 hover:scale-105 transition-transform cursor-pointer">
+                    {(creator.name || creator.email).slice(0, 2).toUpperCase()}
+                  </div>
+                </a>
+              ) : (
+                <img
+                  src="https://i.pravatar.cc/150?img=50"
+                  alt="Host"
+                  class="w-24 h-24 rounded-full border-4 border-slate-200"
+                />
+              )}
             </div>
-
-            <div class="flex items-start gap-3">
-              <div
-                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
-              >
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-2">
+                <h3 class="text-xl font-bold text-slate-900">
+                  {creator ? (
+                    <a 
+                      href={`/profile/${creator.id}`}
+                      class="text-rose-600 hover:text-rose-700 underline decoration-2 underline-offset-2 transition-colors"
+                    >
+                      {creator.name || creator.email}
+                    </a>
+                  ) : (
+                    "Adventure Leaders"
+                  )}
+                </h3>
                 <svg
-                  class="w-4 h-4 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                  class="w-5 h-5 text-blue-600"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
                 >
                   <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"></path>
+                    fill-rule="evenodd"
+                    d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd"
+                  ></path>
                 </svg>
               </div>
-              <div>
-                <div class="font-semibold text-slate-900">Group Leader</div>
-                <div class="text-sm text-slate-600">
-                  Experienced local guide
-                </div>
+              <div class="flex items-center gap-4 text-sm text-slate-600 mb-3">
+                <span>⭐ 4.9 Host rating</span>
+                <span>·</span>
+                <span>{isDbListing ? "1" : "15"} {isDbListing ? "property" : "properties"}</span>
               </div>
-            </div>
-
-            <div class="flex items-start gap-3">
-              <div
-                class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5"
-              >
-                <svg
-                  class="w-4 h-4 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 13l4 4L19 7"></path>
-                </svg>
-              </div>
-              <div>
-                <div class="font-semibold text-slate-900">24/7 Support</div>
-                <div class="text-sm text-slate-600">
-                  Emergency assistance included
-                </div>
-              </div>
+              <p class="text-slate-700 text-sm leading-relaxed">
+                {creator ? "Experienced host providing exceptional stays. Response time: within 1 hour" : "Experienced guides providing unforgettable adventures. Response time: within 1 hour"}
+              </p>
             </div>
           </div>
 
-          <div class="mt-6 pt-6 border-t border-slate-200">
-            <div class="font-semibold text-slate-900 mb-2">Not Included:</div>
-            <div class="text-sm text-slate-600 space-y-1">
-              <div>• International flights</div>
-              <div>• Travel insurance (highly recommended)</div>
-              <div>• Personal expenses & souvenirs</div>
-            </div>
+          <div class="grid grid-cols-2 gap-3">
+            {creator && (
+              <a 
+                href={`/profile/${creator.id}`}
+                class="py-3 border border-slate-300 rounded-xl text-center font-semibold hover:bg-slate-50 transition-colors"
+              >
+                View Profile
+              </a>
+            )}
+            <button class="py-3 border border-slate-300 rounded-xl font-semibold hover:bg-slate-50 transition-colors">
+              Contact {creator ? "Host" : "Us"}
+            </button>
+            {!creator && (
+              <button class="py-3 border border-slate-300 rounded-xl font-semibold hover:bg-slate-50 transition-colors">
+                View Profile
+              </button>
+            )}
           </div>
         </div>
 
@@ -407,27 +609,29 @@ const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
           </h2>
           <div class="space-y-6">
             {
-              Array.from({ length: Math.min(duration, 7) }).map((_, i) => (
+              (group.itinerary && group.itinerary.length > 0 ? group.itinerary : 
+                Array.from({ length: Math.min(duration, 7) }).map((_, i) => ({
+                  day: i + 1,
+                  title: i === 0 ? "Arrival & Welcome" : i === Math.min(duration, 7) - 1 ? "Departure Day" : `Day ${i + 1} Adventure`,
+                  description: i === 0 
+                    ? "Airport pickup and transfer to accommodation. Welcome dinner with the group to meet your fellow travelers and trip leader."
+                    : i === Math.min(duration, 7) - 1 
+                      ? "Final breakfast together. Airport transfers and fond farewells. Take home memories that will last a lifetime."
+                      : `Full day of activities exploring ${group.destination}. Guided tours, local experiences, and free time to explore on your own.`
+                }))
+              ).map((day: any) => (
                 <div class="flex gap-4">
                   <div class="flex-shrink-0">
                     <div class="w-10 h-10 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center">
-                      {i + 1}
+                      {day.day}
                     </div>
                   </div>
                   <div class="flex-1">
                     <h3 class="font-bold text-slate-900 mb-2">
-                      {i === 0
-                        ? "Arrival & Welcome"
-                        : i === duration - 1
-                          ? "Departure Day"
-                          : `Day ${i + 1} Adventure`}
+                      {day.title}
                     </h3>
                     <p class="text-slate-600 text-sm leading-relaxed">
-                      {i === 0
-                        ? "Airport pickup and transfer to accommodation. Welcome dinner with the group to meet your fellow travelers and trip leader."
-                        : i === duration - 1
-                          ? "Final breakfast together. Airport transfers and fond farewells. Take home memories that will last a lifetime."
-                          : `Full day of activities exploring ${group.destination}. Guided tours, local experiences, and free time to explore on your own.`}
+                      {day.description}
                     </p>
                   </div>
                 </div>
@@ -580,9 +784,7 @@ const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
                 </svg>
               </summary>
               <p class="mt-3 text-slate-600 text-sm leading-relaxed">
-                Free cancellation up to 30 days before departure. 50% refund for
-                cancellations 15-30 days before. No refund within 15 days of
-                departure. We recommend travel insurance.
+                {group.cancellationPolicy || "Free cancellation up to 30 days before departure. 50% refund for cancellations 15-30 days before. No refund within 15 days of departure. We recommend travel insurance."}
               </p>
             </details>
 
@@ -680,7 +882,7 @@ const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
             <div class="mb-6">
               <div class="flex items-baseline gap-2 mb-2">
                 <span class="text-4xl font-bold text-slate-900"
-                  >${group.priceUsd}</span
+                  >RM{group.priceUsd}</span
                 >
                 <span class="text-slate-600">per person</span>
               </div>

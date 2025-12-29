@@ -19,24 +19,35 @@ export const POST: APIRoute = async ({ request }) => {
 
     const now = new Date().toISOString();
 
+    // Check if user exists first
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id, role")
+      .eq("id", id)
+      .single();
+
+    // Prepare user data, preserving existing role if user already exists
+    const userData: any = {
+      id,
+      email,
+      name: name ?? null,
+      locale: "en",
+      email_verified: emailVerified ?? null,
+      last_seen: now,
+      updated_at: now,
+    };
+
+    // Only set role for new users
+    if (!existingUser) {
+      userData.role = "traveler";
+    }
+
     // Upsert user data
     const { data: result, error } = await supabase
       .from("users")
-      .upsert(
-        {
-          id,
-          email,
-          name: name ?? null,
-          role: "traveler",
-          locale: "en",
-          email_verified: emailVerified ?? null,
-          last_seen: now,
-          updated_at: now,
-        },
-        {
-          onConflict: "id",
-        }
-      )
+      .upsert(userData, {
+        onConflict: "id",
+      })
       .select()
       .single();
 

@@ -104,6 +104,7 @@ export default function AuthButton() {
       await supabase.auth.signOut();
     } catch {}
     setMenuOpen(false);
+    window.location.href = "/";
   }
 
   if (user) {

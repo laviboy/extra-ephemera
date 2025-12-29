@@ -24,6 +24,8 @@ import {
   X,
   ChevronDown,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 interface FilterState {
@@ -44,6 +46,8 @@ function ExploreContentInner() {
   });
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   // Debounce search
   useEffect(() => {
@@ -104,7 +108,6 @@ function ExploreContentInner() {
         case "price-high":
           return (b.price_max || 0) - (a.price_max || 0);
         case "popular":
-          // Could add a popularity score later
           return 0;
         case "recent":
         default:
@@ -122,7 +125,25 @@ function ExploreContentInner() {
       instantBookable: false,
       sortBy: "recent",
     });
+    setCurrentPage(1);
   };
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredListings.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedListings = filteredListings.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    debouncedSearch,
+    filters.minPrice,
+    filters.maxPrice,
+    filters.instantBookable,
+    filters.sortBy,
+  ]);
 
   const activeFilterCount = [
     filters.search,
@@ -131,7 +152,19 @@ function ExploreContentInner() {
     filters.instantBookable,
   ].filter(Boolean).length;
 
-  const FilterSidebar = () => (
+  const handleSearchChange = (value: string) => {
+    setFilters((prev) => ({ ...prev, search: value }));
+  };
+
+  const handleMinPriceChange = (value: string) => {
+    setFilters((prev) => ({ ...prev, minPrice: value }));
+  };
+
+  const handleMaxPriceChange = (value: string) => {
+    setFilters((prev) => ({ ...prev, maxPrice: value }));
+  };
+
+  const filterSidebarContent = (
     <div className="space-y-6">
       {/* Search */}
       <div className="space-y-3">
@@ -144,7 +177,7 @@ function ExploreContentInner() {
           <Input
             placeholder="Search by location, title..."
             value={filters.search}
-            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="pl-10 border-slate-300 focus:border-rose-500 focus:ring-rose-500"
           />
         </div>
@@ -169,9 +202,7 @@ function ExploreContentInner() {
                 type="number"
                 placeholder="0"
                 value={filters.minPrice}
-                onChange={(e) =>
-                  setFilters({ ...filters, minPrice: e.target.value })
-                }
+                onChange={(e) => handleMinPriceChange(e.target.value)}
                 className="pl-10 border-slate-300 focus:border-rose-500"
               />
             </div>
@@ -186,9 +217,7 @@ function ExploreContentInner() {
                 type="number"
                 placeholder="Any"
                 value={filters.maxPrice}
-                onChange={(e) =>
-                  setFilters({ ...filters, maxPrice: e.target.value })
-                }
+                onChange={(e) => handleMaxPriceChange(e.target.value)}
                 className="pl-10 border-slate-300 focus:border-rose-500"
               />
             </div>
@@ -204,12 +233,15 @@ function ExploreContentInner() {
           <Sparkles className="h-4 w-4 text-rose-500" />
           Booking Options
         </Label>
-        <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-rose-300 hover:bg-rose-50/50 cursor-pointer transition-all">
+        <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-rose-300 hover:bg-rose-50 cursor-pointer transition-all">
           <input
             type="checkbox"
             checked={filters.instantBookable}
             onChange={(e) =>
-              setFilters({ ...filters, instantBookable: e.target.checked })
+              setFilters((prev) => ({
+                ...prev,
+                instantBookable: e.target.checked,
+              }))
             }
             className="h-4 w-4 rounded border-slate-300 text-rose-500 focus:ring-rose-500"
           />
@@ -235,10 +267,10 @@ function ExploreContentInner() {
         <select
           value={filters.sortBy}
           onChange={(e) =>
-            setFilters({
-              ...filters,
+            setFilters((prev) => ({
+              ...prev,
               sortBy: e.target.value as FilterState["sortBy"],
-            })
+            }))
           }
           className="w-full px-3 py-2 border border-slate-300 rounded-md focus:border-rose-500 focus:ring-1 focus:ring-rose-500 text-sm"
         >
@@ -321,9 +353,7 @@ function ExploreContentInner() {
         {/* Mobile Filters Drawer */}
         {showMobileFilters && (
           <Card className="lg:hidden mb-6 border-2 border-slate-200">
-            <CardContent className="p-6">
-              <FilterSidebar />
-            </CardContent>
+            <CardContent className="p-6">{filterSidebarContent}</CardContent>
           </Card>
         )}
 
@@ -340,7 +370,7 @@ function ExploreContentInner() {
                       Filters
                     </h2>
                   </div>
-                  <FilterSidebar />
+                  {filterSidebarContent}
                 </CardContent>
               </Card>
             </div>
@@ -373,7 +403,7 @@ function ExploreContentInner() {
 
             {/* Loading State */}
             {isLoading && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(6)].map((_, i) => (
                   <Card key={i} className="overflow-hidden">
                     <Skeleton className="h-48 w-full" />
@@ -413,28 +443,104 @@ function ExploreContentInner() {
 
             {/* Listings Grid */}
             {!isLoading && filteredListings.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredListings.map((listing) => (
-                  <ListingCard
-                    key={listing.id}
-                    listing={{
-                      ...listing,
-                      subtitle: listing.destination,
-                      priceText: listing.price_min
-                        ? `RM${listing.price_min} per night`
-                        : listing.price_max
-                        ? `Up to RM${listing.price_max}`
-                        : "Price TBD",
-                      imageUrl:
-                        listing.first_image_url ||
-                        `https://picsum.photos/seed/${encodeURIComponent(
-                          listing.id
-                        )}/640/480`,
-                      isGuestFavorite: false,
-                    }}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {paginatedListings.map((listing) => (
+                    <ListingCard
+                      key={listing.id}
+                      listing={{
+                        ...listing,
+                        subtitle: listing.destination,
+                        priceText: listing.price_min
+                          ? `RM${listing.price_min} per night`
+                          : listing.price_max
+                          ? `Up to RM${listing.price_max}`
+                          : "Price TBD",
+                        imageUrl:
+                          listing.first_image_url ||
+                          `https://picsum.photos/seed/${encodeURIComponent(
+                            listing.id
+                          )}/640/480`,
+                        isGuestFavorite: false,
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="mt-12 flex items-center justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="h-10 w-10 p-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+
+                    <div className="flex items-center gap-2">
+                      {[...Array(totalPages)].map((_, idx) => {
+                        const pageNum = idx + 1;
+                        const showPage =
+                          pageNum === 1 ||
+                          pageNum === totalPages ||
+                          Math.abs(pageNum - currentPage) <= 1;
+
+                        const showEllipsis =
+                          (pageNum === 2 && currentPage > 3) ||
+                          (pageNum === totalPages - 1 &&
+                            currentPage < totalPages - 2);
+
+                        if (showEllipsis) {
+                          return (
+                            <span key={pageNum} className="px-2 text-slate-400">
+                              ...
+                            </span>
+                          );
+                        }
+
+                        if (!showPage) return null;
+
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={
+                              currentPage === pageNum ? "default" : "outline"
+                            }
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`h-10 w-10 p-0 ${
+                              currentPage === pageNum
+                                ? "bg-rose-500 hover:bg-rose-600"
+                                : ""
+                            }`}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                      className="h-10 w-10 p-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Page Info */}
+                <div className="mt-6 text-center text-sm text-slate-600">
+                  Showing {startIndex + 1} -{" "}
+                  {Math.min(endIndex, filteredListings.length)} of{" "}
+                  {filteredListings.length} properties
+                </div>
+              </>
             )}
           </main>
         </div>
