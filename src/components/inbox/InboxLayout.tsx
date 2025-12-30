@@ -6,6 +6,7 @@ import { NotificationDetail } from "./NotificationDetail";
 import { ChatView } from "./ChatView";
 import { useAuth } from "../../stores/useAuth";
 import { useRealtimeNotifications } from "../../hooks/useRealtimeNotifications";
+import { useRealtimeConversations } from "../../hooks/useRealtimeConversations";
 import { Inbox, Loader2, Bell, MessageCircle, Calendar } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Card } from "../ui/card";
@@ -13,6 +14,8 @@ import { Card } from "../ui/card";
 export function InboxLayout() {
   const user = useAuth((state) => state.user);
   const { notifications, loading } = useRealtimeNotifications(user?.id || "");
+  const { conversations, loading: loadingConversations } =
+    useRealtimeConversations(user?.id || "");
 
   const [selectedTab, setSelectedTab] = useState("all");
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
@@ -23,13 +26,30 @@ export function InboxLayout() {
     (n) => n.type === "booking_status_update"
   );
 
-  // Reset selected items when tab changes
+  // Auto-select conversation from URL parameter (like CRM does)
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const conversationId = urlParams.get("conversation");
+
+    if (conversationId && conversations.length > 0) {
+      const conversation = conversations.find((c) => c.id === conversationId);
+      if (conversation) {
+        setSelectedTab("messages");
+        setSelectedConversation(conversation);
+        // Clean up URL without refreshing the page
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+  }, [conversations]);
+
+  // Reset selected items when tab changes manually
+  const handleTabChange = (newTab: string) => {
+    setSelectedTab(newTab);
     setSelectedNotification(null);
     setSelectedConversation(null);
-  }, [selectedTab]);
+  };
 
-  if (loading) {
+  if (loading || loadingConversations) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -63,7 +83,7 @@ export function InboxLayout() {
 
       <Tabs
         value={selectedTab}
-        onValueChange={setSelectedTab}
+        onValueChange={handleTabChange}
         className="w-full"
       >
         {/* Modern Tabs */}

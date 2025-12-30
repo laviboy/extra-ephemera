@@ -9,11 +9,34 @@ import {
 import { Button } from "../../../ui/button";
 import { Badge } from "../../../ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../../ui/dialog";
+
+// Dialog state type
+type DialogState = {
+  type: "success" | "confirm" | "error" | null;
+  title: string;
+  message: string;
+  bookingId?: number;
+  action?: "accept" | "reject" | "confirm-deposit";
+};
 
 export function TravelBookingsList() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
+  const [dialogState, setDialogState] = useState<DialogState>({
+    type: null,
+    title: "",
+    message: "",
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const getAccessToken = () => {
     const rawSession = localStorage.getItem(
@@ -47,6 +70,7 @@ export function TravelBookingsList() {
   };
 
   const handleAccept = async (bookingId: number) => {
+    setIsProcessing(true);
     try {
       const accessToken = getAccessToken();
       const response = await fetch(`/api/travel-bookings/${bookingId}`, {
@@ -59,42 +83,89 @@ export function TravelBookingsList() {
       });
 
       if (response.ok) {
-        alert(
-          "Booking accepted! A conversation has been created with the traveler."
-        );
+        setDialogState({
+          type: "success",
+          title: "Booking Accepted! 🎉",
+          message:
+            "The traveler has been notified and a conversation has been created. You can now chat with them to share trip details.",
+        });
         fetchBookings();
+      } else {
+        setDialogState({
+          type: "error",
+          title: "Failed to Accept",
+          message: "Something went wrong. Please try again.",
+        });
       }
     } catch (error) {
       console.error("Error accepting booking:", error);
-      alert("Failed to accept booking");
+      setDialogState({
+        type: "error",
+        title: "Error",
+        message: "Failed to accept booking. Please try again.",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleReject = async (bookingId: number) => {
-    if (!confirm("Are you sure you want to reject this booking?")) return;
+    setDialogState({
+      type: "confirm",
+      title: "Reject Booking?",
+      message:
+        "Are you sure you want to reject this booking? The traveler will be notified and if they have paid, a refund will be initiated.",
+      bookingId,
+      action: "reject",
+    });
+  };
+
+  const confirmReject = async () => {
+    if (!dialogState.bookingId) return;
+    setIsProcessing(true);
 
     try {
       const accessToken = getAccessToken();
-      const response = await fetch(`/api/travel-bookings/${bookingId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ status: "rejected" }),
-      });
+      const response = await fetch(
+        `/api/travel-bookings/${dialogState.bookingId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ status: "rejected" }),
+        }
+      );
 
       if (response.ok) {
-        alert("Booking rejected");
+        setDialogState({
+          type: "success",
+          title: "Booking Rejected",
+          message: "The traveler has been notified.",
+        });
         fetchBookings();
+      } else {
+        setDialogState({
+          type: "error",
+          title: "Failed to Reject",
+          message: "Something went wrong. Please try again.",
+        });
       }
     } catch (error) {
       console.error("Error rejecting booking:", error);
-      alert("Failed to reject booking");
+      setDialogState({
+        type: "error",
+        title: "Error",
+        message: "Failed to reject booking. Please try again.",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleConfirmDeposit = async (bookingId: number) => {
+    setIsProcessing(true);
     try {
       const accessToken = getAccessToken();
       const response = await fetch(`/api/travel-bookings/${bookingId}`, {
@@ -107,20 +178,58 @@ export function TravelBookingsList() {
       });
 
       if (response.ok) {
-        alert("Deposit confirmed! Booking is now complete.");
+        setDialogState({
+          type: "success",
+          title: "Deposit Confirmed! ✓",
+          message:
+            "The booking is now complete. The traveler has been notified.",
+        });
         fetchBookings();
+      } else {
+        setDialogState({
+          type: "error",
+          title: "Failed to Confirm",
+          message: "Something went wrong. Please try again.",
+        });
       }
     } catch (error) {
       console.error("Error confirming deposit:", error);
-      alert("Failed to confirm deposit");
+      setDialogState({
+        type: "error",
+        title: "Error",
+        message: "Failed to confirm deposit. Please try again.",
+      });
+    } finally {
+      setIsProcessing(false);
     }
+  };
+
+  const closeDialog = () => {
+    setDialogState({ type: null, title: "", message: "" });
   };
 
   const statusConfig: Record<
     string,
     { label: string; variant: any; className?: string }
   > = {
-    pending: { label: "Pending", variant: "secondary" },
+    pending: { label: "Awaiting Payment", variant: "secondary" },
+    pending_payment: { label: "Awaiting Payment", variant: "secondary" },
+    payment_processing: {
+      label: "Payment Processing",
+      variant: "secondary",
+      className: "bg-blue-100 text-blue-800",
+    },
+    payment_failed: { label: "Payment Failed", variant: "destructive" },
+    pending_review: {
+      label: "Deposit Paid - Review",
+      variant: "default",
+      className: "bg-purple-600 hover:bg-purple-700 text-white",
+    },
+    joined: {
+      label: "Joined",
+      variant: "default",
+      className: "bg-green-600 hover:bg-green-700 text-white",
+    },
     accepted: {
       label: "Accepted",
       variant: "default",
@@ -128,20 +237,34 @@ export function TravelBookingsList() {
     },
     hold: { label: "On Hold", variant: "default" },
     deposit_pending: { label: "Deposit Pending", variant: "secondary" },
-    confirmed: { label: "Confirmed", variant: "default" },
+    confirmed: {
+      label: "Confirmed",
+      variant: "default",
+      className: "bg-green-600 hover:bg-green-700 text-white",
+    },
     cancelled: { label: "Cancelled", variant: "destructive" },
     rejected: { label: "Rejected", variant: "destructive" },
   };
 
   const filteredBookings =
-    filter === "all" ? bookings : bookings.filter((b) => b.status === filter);
+    filter === "all"
+      ? bookings
+      : filter === "pending"
+      ? bookings.filter((b) =>
+          ["pending", "pending_payment"].includes(b.status)
+        )
+      : filter === "confirmed"
+      ? bookings.filter((b) => ["confirmed", "joined"].includes(b.status))
+      : bookings.filter((b) => b.status === filter);
 
-  const pendingCount = bookings.filter((b) => b.status === "pending").length;
-  const depositPendingCount = bookings.filter(
-    (b) => b.status === "deposit_pending"
+  const pendingCount = bookings.filter((b) =>
+    ["pending", "pending_payment"].includes(b.status)
   ).length;
-  const confirmedCount = bookings.filter(
-    (b) => b.status === "confirmed"
+  const pendingReviewCount = bookings.filter(
+    (b) => b.status === "pending_review"
+  ).length;
+  const confirmedCount = bookings.filter((b) =>
+    ["confirmed", "joined"].includes(b.status)
   ).length;
 
   if (isLoading) {
@@ -178,7 +301,7 @@ export function TravelBookingsList() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Pending Review</CardDescription>
+            <CardDescription>Awaiting Payment</CardDescription>
             <CardTitle className="text-3xl text-yellow-600">
               {pendingCount}
             </CardTitle>
@@ -186,9 +309,9 @@ export function TravelBookingsList() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Awaiting Deposit</CardDescription>
+            <CardDescription>Paid - Review</CardDescription>
             <CardTitle className="text-3xl text-purple-600">
-              {depositPendingCount}
+              {pendingReviewCount}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -206,9 +329,11 @@ export function TravelBookingsList() {
       <Tabs value={filter} onValueChange={setFilter}>
         <TabsList>
           <TabsTrigger value="all">All ({bookings.length})</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({pendingCount})</TabsTrigger>
-          <TabsTrigger value="deposit_pending">
-            Deposit Pending ({depositPendingCount})
+          <TabsTrigger value="pending">
+            Awaiting Payment ({pendingCount})
+          </TabsTrigger>
+          <TabsTrigger value="pending_review">
+            Paid - Review ({pendingReviewCount})
           </TabsTrigger>
           <TabsTrigger value="confirmed">
             Confirmed ({confirmedCount})
@@ -254,7 +379,7 @@ export function TravelBookingsList() {
                             <span className="text-slate-600">Requested:</span>
                             <span className="ml-2 font-medium">
                               {new Date(
-                                booking.requestedAt
+                                booking.requested_at
                               ).toLocaleDateString()}
                             </span>
                           </div>
@@ -274,15 +399,25 @@ export function TravelBookingsList() {
                                 : "TBD"}
                             </span>
                           </div>
+                          {booking.status === "pending_review" && (
+                            <div className="col-span-2">
+                              <span className="text-slate-600">
+                                Payment Status:
+                              </span>
+                              <Badge className="ml-2 bg-green-100 text-green-800">
+                                ✓ Deposit Paid
+                              </Badge>
+                            </div>
+                          )}
                         </div>
 
-                        {booking.travelerNotes && (
+                        {booking.traveler_notes && (
                           <div className="mt-3 p-3 bg-slate-50 rounded-lg">
                             <p className="text-sm text-slate-600 font-medium mb-1">
                               Traveler's Message:
                             </p>
                             <p className="text-sm text-slate-700">
-                              {booking.travelerNotes}
+                              {booking.traveler_notes}
                             </p>
                           </div>
                         )}
@@ -315,6 +450,12 @@ export function TravelBookingsList() {
                             </Button>
                           )}
                           {booking.status === "pending" && (
+                            <p className="text-sm text-amber-600 italic">
+                              Waiting for traveler to pay deposit...
+                            </p>
+                          )}
+
+                          {booking.status === "pending_review" && (
                             <>
                               <Button
                                 size="sm"
@@ -374,6 +515,67 @@ export function TravelBookingsList() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Success/Error Dialog */}
+      <Dialog
+        open={dialogState.type === "success" || dialogState.type === "error"}
+        onOpenChange={(open) => !open && closeDialog()}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle
+              className={
+                dialogState.type === "success"
+                  ? "text-green-600"
+                  : "text-red-600"
+              }
+            >
+              {dialogState.title}
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 pt-2">
+              {dialogState.message}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={closeDialog} className="w-full sm:w-auto">
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={dialogState.type === "confirm"}
+        onOpenChange={(open) => !open && closeDialog()}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-amber-600">
+              {dialogState.title}
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 pt-2">
+              {dialogState.message}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={closeDialog}
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmReject}
+              disabled={isProcessing}
+            >
+              {isProcessing ? "Processing..." : "Yes, Reject"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

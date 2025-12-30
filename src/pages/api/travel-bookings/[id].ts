@@ -177,9 +177,9 @@ export const PATCH: APIRoute = async ({ params, request }) => {
     };
 
     if (newStatus) {
-      // Only agent can change status to accepted, rejected, confirmed
+      // Only agent can change status to accepted, rejected, confirmed, joined
       if (
-        ["accepted", "rejected", "confirmed"].includes(newStatus) &&
+        ["accepted", "rejected", "confirmed", "joined"].includes(newStatus) &&
         !isAgent
       ) {
         return new Response(
@@ -191,18 +191,44 @@ export const PATCH: APIRoute = async ({ params, request }) => {
         );
       }
 
+      // Validate status transitions based on payment status
+      if (newStatus === "joined" && booking.payment_status !== "paid") {
+        return new Response(
+          JSON.stringify({ error: "Cannot accept booking without payment" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
       updateData.status = newStatus;
 
-      if (newStatus === "accepted") {
+      if (newStatus === "joined") {
+        updateData.accepted_at = new Date().toISOString();
+        updateData.reviewed_at = new Date().toISOString();
+
+        // Notify traveler
+        await supabase.from("notifications").insert({
+          user_id: booking.traveler_id,
+          type: "booking_accepted",
+          title: "You're In! 🎉",
+          message: "Your booking has been accepted. Welcome to the group!",
+          related_id: bookingId.toString(),
+          related_type: "booking",
+          action_url: `/travel-bookings/${bookingId}`,
+          read: false,
+        });
+      } else if (newStatus === "accepted") {
         updateData.accepted_at = new Date().toISOString();
 
         // Notify traveler
         await supabase.from("notifications").insert({
           user_id: booking.traveler_id,
           type: "booking_accepted",
-          title: "Booking Accepted!",
+          title: "Booking Accepted! 🎉",
           message:
-            "Your travel group booking has been accepted. Please proceed with the deposit.",
+            "Great news! Your travel group booking has been accepted. The agent will be in touch with more details soon.",
           related_id: bookingId.toString(),
           related_type: "booking",
           action_url: `/travel-bookings/${bookingId}`,
@@ -210,12 +236,39 @@ export const PATCH: APIRoute = async ({ params, request }) => {
         });
       } else if (newStatus === "rejected") {
         updateData.cancelled_at = new Date().toISOString();
+        updateData.reviewed_at = new Date().toISOString();
+
+        // If payment was made, initiate refund
+        if (
+          booking.payment_status === "paid" &&
+          booking.payment_transaction_id
+        ) {
+          // Create a refund transaction record
+          await supabase.from("payment_transactions").insert({
+            booking_id: bookingId,
+            amount: booking.payment_required_amount || 0,
+            currency: "usd",
+            type: "refund",
+            status: "processing",
+            metadata: {
+              original_transaction_id: booking.payment_transaction_id,
+              reason: "Booking rejected by agent",
+            },
+          });
+
+          // Update booking payment status
+          updateData.payment_status = "refunded";
+        }
+
         // Notify traveler
         await supabase.from("notifications").insert({
           user_id: booking.traveler_id,
           type: "booking_rejected",
           title: "Booking Not Accepted",
-          message: "Unfortunately, your travel group booking was not accepted.",
+          message:
+            booking.payment_status === "paid"
+              ? "Unfortunately, your booking was not accepted. A refund has been initiated."
+              : "Unfortunately, your travel group booking was not accepted.",
           related_id: bookingId.toString(),
           related_type: "booking",
           action_url: `/travel-bookings/${bookingId}`,

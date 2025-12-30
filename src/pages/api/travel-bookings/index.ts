@@ -152,7 +152,7 @@ export const POST: APIRoute = async ({ request }) => {
     // Get the listing to find the agent
     const { data: listing, error: listingError } = await supabase
       .from("listings")
-      .select("id, title, creator_id")
+      .select("id, title, creator_id, price_min")
       .eq("id", listingId)
       .single();
 
@@ -223,6 +223,16 @@ export const POST: APIRoute = async ({ request }) => {
 
     if (convError) {
       console.error("Error creating conversation:", convError);
+    } else {
+      // Link the conversation to the booking
+      const { error: updateError } = await supabase
+        .from("travel_group_bookings")
+        .update({ conversation_id: conversationId })
+        .eq("id", booking.id);
+
+      if (updateError) {
+        console.error("Error linking conversation to booking:", updateError);
+      }
     }
 
     // Create a notification for the agent

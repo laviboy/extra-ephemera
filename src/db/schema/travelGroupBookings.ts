@@ -5,6 +5,8 @@ import {
   integer,
   timestamp,
   boolean,
+  decimal,
+  varchar,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { users } from "./users";
@@ -27,12 +29,22 @@ export const travelGroupBookings = pgTable("travel_group_bookings", {
     onDelete: "set null",
   }),
 
-  // Status: pending, accepted, hold, deposit_pending, confirmed, cancelled, rejected
-  status: text("status").notNull().default("pending"),
+  // Status: pending_payment, payment_processing, payment_failed, pending_review, joined, rejected, cancelled, confirmed
+  status: text("status").notNull().default("pending_payment"),
 
-  // Payment tracking
+  // Legacy payment tracking (kept for backward compatibility)
   depositAmount: integer("deposit_amount"),
   depositPaid: boolean("deposit_paid").default(false),
+
+  // New payment tracking
+  paymentTransactionId: integer("payment_transaction_id"),
+  paymentStatus: varchar("payment_status", { length: 50 }).default("pending"),
+  paymentRequiredAmount: decimal("payment_required_amount", {
+    precision: 10,
+    scale: 2,
+  }),
+  paymentDeadline: timestamp("payment_deadline", { withTimezone: true }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
 
   // Notes
   travelerNotes: text("traveler_notes"), // Why they want to join
