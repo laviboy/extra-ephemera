@@ -38,6 +38,19 @@ export const GET: APIRoute = async ({ request }) => {
           name,
           email,
           role
+        ),
+        companions:travel_group_bookings!listing_id (
+          id,
+          traveler_id,
+          status,
+          payment_status,
+          deposit_paid,
+          confirmed_at,
+          traveler:traveler_id (
+            id,
+            name,
+            email
+          )
         )
       `
       )
@@ -57,23 +70,41 @@ export const GET: APIRoute = async ({ request }) => {
       throw error;
     }
 
-    // Transform listings to include first_image_url and creator info
-    const listingsWithImages = listings?.map((listing: any) => {
+    // Transform listings to include first_image_url, creator info, and filter companions
+    const listingsWithExtras = listings?.map((listing: any) => {
       // Sort images by display_order and get first one
       const sortedImages = (listing.images || []).sort(
         (a: any, b: any) => a.display_order - b.display_order
       );
       const firstImage = sortedImages[0];
 
+      // Filter companions to only confirmed travelers
+      const companions = (listing.companions || [])
+        .filter(
+          (b: any) =>
+            b &&
+            (b.payment_status === "succeeded" ||
+              b.deposit_paid === true ||
+              ["joined", "confirmed"].includes(b.status))
+        )
+        .map((b: any) => ({
+          id: b.traveler?.id,
+          name: b.traveler?.name || b.traveler?.email?.split("@")[0],
+          email: b.traveler?.email,
+          confirmedAt: b.confirmed_at,
+        }));
+
       return {
         ...listing,
         first_image_url: firstImage?.url || null,
         creator: listing.creator || null,
+        companions,
         images: undefined, // Remove nested images array from response
+        companions_raw: undefined, // Remove raw companions if present
       };
     });
 
-    return Response.json({ listings: listingsWithImages });
+    return Response.json({ listings: listingsWithExtras });
   } catch (error) {
     console.error("Error fetching listings:", error);
     return Response.json(

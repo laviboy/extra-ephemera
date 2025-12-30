@@ -62,7 +62,8 @@ export function ReserveSpotButton({
       });
       if (response.ok) {
         const { bookings } = await response.json();
-        const booking = bookings.find((b: any) => b.listingId === listingId);
+        // Use correct field name from API: listing_id
+        const booking = bookings.find((b: any) => b.listing_id === listingId);
         setExistingBooking(booking);
       }
     } catch (error) {
@@ -129,11 +130,58 @@ export function ReserveSpotButton({
   }
 
   if (existingBooking) {
+    // Check if deposit has been paid (payment succeeded)
+    const depositPaid =
+      existingBooking.payment_status === "succeeded" ||
+      existingBooking.deposit_paid === true;
+
+    // If deposit is paid, show a confirmation message instead of button
+    if (depositPaid) {
+      return (
+        <div className="w-full p-4 bg-green-50 border border-green-200 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <svg
+                className="w-6 h-6 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <div>
+              <div className="font-bold text-green-900">You're on board!</div>
+              <div className="text-sm text-green-700">
+                Your deposit has been paid. See you on the trip!
+              </div>
+            </div>
+          </div>
+          <a
+            href={`/travel-bookings/${existingBooking.id}`}
+            className="mt-3 block text-center text-sm text-green-700 hover:text-green-800 underline"
+          >
+            View booking details →
+          </a>
+        </div>
+      );
+    }
+
     const statusColors: Record<string, string> = {
       pending: "bg-yellow-500 hover:bg-yellow-600",
+      pending_payment: "bg-purple-500 hover:bg-purple-600",
+      payment_processing: "bg-blue-500 hover:bg-blue-600",
+      payment_failed: "bg-red-500 hover:bg-red-600",
       accepted: "bg-blue-500 hover:bg-blue-600",
       hold: "bg-blue-500 hover:bg-blue-600",
       deposit_pending: "bg-purple-500 hover:bg-purple-600",
+      pending_review: "bg-yellow-500 hover:bg-yellow-600",
+      joined: "bg-green-500 hover:bg-green-600",
       confirmed: "bg-green-500 hover:bg-green-600",
       cancelled: "bg-gray-500 hover:bg-gray-600",
       rejected: "bg-red-500 hover:bg-red-600",
@@ -141,9 +189,14 @@ export function ReserveSpotButton({
 
     const statusLabels: Record<string, string> = {
       pending: "Booking Pending",
+      pending_payment: "Pay Deposit to Continue",
+      payment_processing: "Processing Payment...",
+      payment_failed: "Payment Failed - Retry",
       accepted: "Accepted - Action Required",
       hold: "On Hold",
       deposit_pending: "Deposit Pending",
+      pending_review: "Awaiting Host Review",
+      joined: "You're In! View Details",
       confirmed: "Booking Confirmed!",
       cancelled: "Booking Cancelled",
       rejected: "Booking Not Accepted",

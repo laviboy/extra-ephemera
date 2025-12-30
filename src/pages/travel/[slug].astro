@@ -3,6 +3,8 @@ import Layout from "../../layouts/Layout.astro";
 import { allGroups } from "../../data/travelGroups";
 import { ImageGallery } from "../../components/ui/image-gallery";
 import { ReserveSpotButton } from "../../components/travel/ReserveSpotButton";
+import { TravelCompanions } from "../../components/travel/TravelCompanions";
+import { SpotsAlert } from "../../components/travel/SpotsAlert";
 
 export async function getStaticPaths() {
   return allGroups.map((g) => ({ params: { slug: g.slug } }));
@@ -52,7 +54,8 @@ if (!group) {
           includedItems: dbListing.included_items || [],
           notIncludedItems: dbListing.not_included_items || [],
           itinerary: dbListing.itinerary || [],
-          cancellationPolicy: dbListing.cancellation_policy || "Free cancellation up to 30 days before departure."
+          cancellationPolicy: dbListing.cancellation_policy || "Free cancellation up to 30 days before departure.",
+          companions: dbListing.companions || [],
         } as any;
 
         // Fetch images for this listing
@@ -643,55 +646,13 @@ const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
           </div>
         </div>
 
-        <!-- Meet Your Group -->
-        <div class="border border-slate-200 rounded-2xl p-6">
-          <h2 class="text-2xl font-bold text-slate-900 mb-2">
-            Meet Your Travel Companions
-          </h2>
-          <p class="text-slate-600 mb-6">
-            Real travelers who have joined this trip
-          </p>
-
-          <div class="flex flex-wrap gap-4 mb-6">
-            {
-              Array.from({ length: 6 }).map((_, i) => (
-                <div class="flex items-center gap-3 border border-slate-200 rounded-xl p-3 hover:border-rose-300 transition-colors">
-                  <img
-                    src={`https://i.pravatar.cc/150?img=${i + 10}`}
-                    alt={`Traveler ${i + 1}`}
-                    class="w-12 h-12 rounded-full"
-                  />
-                  <div>
-                    <div class="font-semibold text-slate-900 text-sm">
-                      Sarah M.
-                    </div>
-                    <div class="text-xs text-slate-600">From USA</div>
-                  </div>
-                </div>
-              ))
-            }
-          </div>
-
-          <div class="bg-rose-50 border border-rose-200 rounded-xl p-4">
-            <div class="flex items-start gap-3">
-              <div
-                class="w-10 h-10 bg-rose-500 rounded-full flex items-center justify-center flex-shrink-0"
-              >
-                <span class="text-white font-bold text-lg"
-                  >{group.seatsLeft}</span
-                >
-              </div>
-              <div>
-                <div class="font-bold text-slate-900">
-                  Only {group.seatsLeft} seats remaining!
-                </div>
-                <div class="text-sm text-slate-600">
-                  This trip is filling up fast. Reserve your spot today.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- Meet Your Group - Dynamic Component -->
+        <TravelCompanions
+          client:load
+          travelers={group.companions || []}
+          maxGroupSize={group.maxGroupSize || 12}
+          availableSpots={group.seatsLeft || group.availableSpots || 8}
+        />
 
         <!-- Reviews -->
         <div class="border border-slate-200 rounded-2xl p-6">
@@ -957,32 +918,12 @@ const similarTrips = allGroups.filter((g) => g.id !== group.id).slice(0, 3);
               </div>
             </div>
 
-            <!-- Seats Left Alert -->
-            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-              <div class="flex items-start gap-3">
-                <svg
-                  class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  ></path>
-                </svg>
-                <div>
-                  <div class="font-bold text-red-900 text-sm">
-                    Only {group.seatsLeft} spots left!
-                  </div>
-                  <div class="text-xs text-red-700 mt-1">
-                    This trip is almost full. Book now to secure your spot.
-                  </div>
-                </div>
-              </div>
-            </div>
+            <!-- Seats Left Alert - Dynamic -->
+            <SpotsAlert
+              client:load
+              listingId={group.id}
+              initialAvailableSpots={group.seatsLeft || group.availableSpots || 8}
+            />
 
             <!-- CTA Buttons -->
             <div class="space-y-3">

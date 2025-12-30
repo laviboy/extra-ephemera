@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../stores/useAuth";
 import { Button } from "../ui/button";
-import { Textarea } from "../ui/textarea";
 import {
   Card,
   CardContent,
@@ -20,8 +19,35 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import {
+  MessageCircle,
+  Check,
+  X,
+  Info,
+  Loader2,
+  DollarSign,
+  ClipboardList,
+  Calendar,
+  Clock,
+  Users,
+  MapPin,
+  Phone,
+  Search,
+  User,
+  UserPlus,
+  ShieldAlert,
+} from "lucide-react";
 
-// Dialog state type
+import {
+  PaymentTimeline,
+  calculatePaymentMilestones,
+  TripCountdown,
+  TripInfoCard,
+  PreTripChecklist,
+  STATUS_CONFIG,
+  getStatusDescription,
+} from "./booking";
+
 type DialogState = {
   type: "success" | "confirm" | "error" | null;
   title: string;
@@ -36,9 +62,6 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const user = useAuth((s) => s.user);
   const [booking, setBooking] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [newMessage, setNewMessage] = useState("");
-  const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [isPayingDeposit, setIsPayingDeposit] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [dialogState, setDialogState] = useState<DialogState>({
     type: null,
@@ -48,6 +71,38 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  const tripStartDate = useMemo(() => {
+    if (!booking?.listing?.start_date) return null;
+    const date = new Date(booking.listing.start_date);
+    return isNaN(date.getTime()) ? null : date;
+  }, [booking?.listing?.start_date]);
+
+  const totalPrice = booking?.listing?.price_min || 1000;
+
+  const paymentMilestones = useMemo(
+    () =>
+      calculatePaymentMilestones(
+        totalPrice,
+        tripStartDate,
+        booking?.status || "pending",
+        booking?.payment_status
+      ),
+    [totalPrice, tripStartDate, booking?.status, booking?.payment_status]
+  );
+
+  const tripDuration = useMemo(() => {
+    if (booking?.listing?.start_date && booking?.listing?.end_date) {
+      const start = new Date(booking.listing.start_date);
+      const end = new Date(booking.listing.end_date);
+      const diff = Math.ceil(
+        (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      return `${diff} days ${diff - 1} nights`;
+    }
+    return null;
+  }, [booking?.listing?.start_date, booking?.listing?.end_date]);
+
   const getAccessToken = () => {
     const rawSession = localStorage.getItem(
       "sb-tomxahjmbfkcrfszuhpo-auth-token"
@@ -56,17 +111,11 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     return session?.access_token;
   };
 
-  useEffect(() => {
-    fetchBookingDetails();
-  }, [bookingId]);
-
   const fetchBookingDetails = async () => {
     try {
       const accessToken = getAccessToken();
       const response = await fetch(`/api/travel-bookings/${bookingId}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (response.ok) {
         const { booking } = await response.json();
@@ -79,48 +128,16 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     }
   };
 
-  const handlePayDeposit = async () => {
-    setIsPayingDeposit(true);
-    try {
-      const accessToken = getAccessToken();
-      // Mock payment - just update status to deposit_pending
-      const response = await fetch(`/api/travel-bookings/${bookingId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          status: "deposit_pending",
-        }),
-      });
+  useEffect(() => {
+    fetchBookingDetails();
+  }, [bookingId]);
 
-      if (response.ok) {
-        setDialogState({
-          type: "success",
-          title: "Payment Submitted! ✓",
-          message:
-            "The agent will confirm your deposit shortly. You'll be notified once it's verified.",
-        });
-        fetchBookingDetails();
-      }
-    } catch (error) {
-      console.error("Error processing payment:", error);
-      setDialogState({
-        type: "error",
-        title: "Error",
-        message: "An error occurred. Please try again.",
-      });
-    } finally {
-      setIsPayingDeposit(false);
-    }
-  };
-
+  // NOW SAFE TO DO CONDITIONAL RETURNS
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500 mx-auto"></div>
+          <Loader2 className="h-12 w-12 animate-spin text-rose-500 mx-auto" />
           <p className="mt-4 text-slate-600">Loading booking details...</p>
         </div>
       </div>
@@ -137,115 +154,19 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     );
   }
 
-  const statusConfig: Record<
-    string,
-    { label: string; color: string; description: string }
-  > = {
-    // New payment-first flow statuses
-    pending_payment: {
-      label: "Payment Required",
-      color: "bg-amber-100 text-amber-800 border-amber-300",
-      description:
-        "Complete your deposit payment to submit your booking request.",
-    },
-    payment_processing: {
-      label: "Processing Payment",
-      color: "bg-blue-100 text-blue-800 border-blue-300",
-      description: "Your payment is being processed. Please wait...",
-    },
-    payment_failed: {
-      label: "Payment Failed",
-      color: "bg-red-100 text-red-800 border-red-300",
-      description: "Your payment could not be processed. Please try again.",
-    },
-    pending_review: {
-      label: "Pending Review",
-      color: "bg-purple-100 text-purple-800 border-purple-300",
-      description:
-        "Payment received! The agent is reviewing your booking request.",
-    },
-    joined: {
-      label: "Joined",
-      color: "bg-green-100 text-green-800 border-green-300",
-      description: "Welcome to the group! You're all set for the adventure.",
-    },
-    // Legacy statuses (backward compatibility)
-    pending: {
-      label: "Payment Required",
-      color: "bg-amber-100 text-amber-800 border-amber-300",
-      description:
-        "Pay your deposit to secure your spot. The agent will review your booking once payment is confirmed. You also may start a chat with the agent to introduce yourself, or ask any questions you may have.",
-    },
-    accepted: {
-      label: "Booking Accepted",
-      color: "bg-green-100 text-green-800 border-green-300",
-      description:
-        "Great news! Your booking spot has been accepted. The agent will keep in touch with you for more details. You can connect with them anytime using the chat!",
-    },
-    hold: {
-      label: "On Hold",
-      color: "bg-blue-100 text-blue-800 border-blue-300",
-      description: "Your spot is on hold. Please complete the deposit payment.",
-    },
-    deposit_pending: {
-      label: "Deposit Pending",
-      color: "bg-purple-100 text-purple-800 border-purple-300",
-      description: "Your deposit payment is being verified by the agent.",
-    },
-    confirmed: {
-      label: "Confirmed",
-      color: "bg-green-100 text-green-800 border-green-300",
-      description: "Your booking is confirmed! Get ready for your adventure.",
-    },
-    cancelled: {
-      label: "Cancelled",
-      color: "bg-gray-100 text-gray-800 border-gray-300",
-      description: "This booking has been cancelled.",
-    },
-    rejected: {
-      label: "Not Accepted",
-      color: "bg-red-100 text-red-800 border-red-300",
-      description: "Unfortunately, your booking request was not accepted.",
-    },
-  };
-
-  const config = statusConfig[booking.status] || statusConfig.pending;
+  const config = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
   const isTraveler = user?.id === booking.traveler_id;
+  const statusDescription = getStatusDescription(
+    booking.status,
+    isTraveler,
+    booking.traveler?.full_name,
+    config.description
+  );
 
-  // Override description based on viewer (traveler vs agent)
-  const getStatusDescription = () => {
-    if (booking.status === "accepted") {
-      return isTraveler
-        ? "Great news! Your booking spot has been accepted. The agent will keep in touch with you for more details. You can connect with them anytime using the chat!"
-        : `Congrats! ${
-            booking.traveler?.full_name || "A traveler"
-          } is now on board for this trip. Keep in touch with them through your chat to share trip details and updates.`;
-    }
-    if (booking.status === "pending" || booking.status === "pending_payment") {
-      return isTraveler
-        ? "Pay your deposit to secure your spot. The agent will review your booking once payment is confirmed. You can also start a chat with the agent to introduce yourself or ask any questions."
-        : `${
-            booking.traveler?.full_name || "A traveler"
-          } is interested in joining this trip! Please wait while they complete their deposit payment. Stay alert — they might reach out via chat with questions!`;
-    }
-    if (booking.status === "pending_review") {
-      return isTraveler
-        ? "Payment received! The agent is reviewing your booking request."
-        : `${
-            booking.traveler?.full_name || "A traveler"
-          } has paid the deposit and is waiting for your review. Accept or decline their booking request.`;
-    }
-    return config.description;
-  };
-
-  const statusDescription = getStatusDescription();
-
-  // Show payment button for pending status (pay to secure spot)
   const showPaymentButton =
     isTraveler &&
     ["pending", "pending_payment", "payment_failed"].includes(booking.status);
 
-  // Calculate deposit amount
   const depositAmount =
     booking.payment_required_amount ||
     booking.depositAmount ||
@@ -256,9 +177,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     fetchBookingDetails();
   };
 
-  const handleCancelBooking = () => {
-    setShowCancelConfirm(true);
-  };
+  const handleCancelBooking = () => setShowCancelConfirm(true);
 
   const confirmCancelBooking = async () => {
     setIsProcessing(true);
@@ -303,209 +222,100 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     }
   };
 
-  const closeDialog = () => {
+  const closeDialog = () =>
     setDialogState({ type: null, title: "", message: "" });
+
+  const goToChat = () => {
+    window.location.href = booking.conversation_id
+      ? `/inbox?conversation=${booking.conversation_id}`
+      : "/inbox";
+  };
+
+  const StatusIcon = () => {
+    if (["accepted", "confirmed", "joined"].includes(booking.status)) {
+      return <Check className="w-5 h-5" />;
+    }
+    if (["rejected", "cancelled"].includes(booking.status)) {
+      return <X className="w-5 h-5" />;
+    }
+    return <Info className="w-5 h-5" />;
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-slate-100">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1 sm:mb-2">
-              Booking Details
+            <div className="flex items-center gap-2 mb-2">
+              <Badge
+                className={`${config.color} px-3 py-1 text-xs font-semibold`}
+              >
+                {config.label}
+              </Badge>
+            </div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mb-1">
+              {booking.listing?.title || "Trip Booking"}
             </h1>
-            <p className="text-sm sm:text-base text-slate-600">
-              Booking ID: #{booking.id}
+            <p className="text-sm text-slate-500">
+              Booking #{String(booking.id).slice(0, 8)}
             </p>
           </div>
-          <div className="flex flex-col-reverse sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-            <Button
-              variant="outline"
-              onClick={() =>
-                (window.location.href = booking.conversation_id
-                  ? `/inbox?conversation=${booking.conversation_id}`
-                  : "/inbox")
-              }
-              className="flex items-center gap-2 w-full sm:w-auto justify-center"
-              size="sm"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
-              </svg>
-              <span className="sm:inline">
-                {isTraveler ? "Chat with Agent" : "Chat with Traveler"}
-              </span>
-            </Button>
-            <Badge
-              className={`${config.color} px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold`}
-            >
-              {config.label}
-            </Badge>
+          <Button
+            variant="outline"
+            onClick={goToChat}
+            className="flex items-center gap-2 w-full sm:w-auto justify-center"
+            size="sm"
+          >
+            <MessageCircle className="w-4 h-4" />
+            {isTraveler ? "Chat with Agent" : "Chat with Traveler"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Status Alert Banner */}
+      <div className={`rounded-xl border p-4 ${config.color}`}>
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <StatusIcon />
           </div>
+          <p className="font-medium text-sm sm:text-base flex-1">
+            {statusDescription}
+          </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6 order-2 lg:order-1">
-          {/* Status Card */}
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">
-                Booking Status
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+          {/* Trip Countdown - Mobile */}
+          {tripStartDate && (
+            <div className="lg:hidden">
+              <TripCountdown startDate={tripStartDate} />
+            </div>
+          )}
+
+          {/* Payment Timeline Card */}
+          <Card className="border-slate-200">
+            <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
+              <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-emerald-600" />
+                Payment Schedule
               </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Your payment is split into 3 easy installments
+              </CardDescription>
             </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-              <div className={`p-3 sm:p-4 rounded-lg border ${config.color}`}>
-                <p className="font-medium text-sm sm:text-base">
-                  {statusDescription}
-                </p>
-              </div>
-
-              {/* Timeline */}
-              <div className="mt-6 space-y-4">
-                <div className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white">
-                      <svg
-                        className="w-5 h-5"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
-                    <div className="w-0.5 h-12 bg-slate-200"></div>
-                  </div>
-                  <div className="flex-1 pb-8">
-                    <h3 className="font-semibold text-slate-900">
-                      Request Submitted
-                    </h3>
-                    <p className="text-sm text-slate-600">
-                      {new Date(booking.requested_at).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                {booking.accepted_at && (
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white">
-                        <svg
-                          className="w-5 h-5"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                      {booking.confirmed_at && (
-                        <div className="w-0.5 h-12 bg-slate-200"></div>
-                      )}
-                    </div>
-                    <div className="flex-1 pb-8">
-                      <h3 className="font-semibold text-slate-900">
-                        Accepted by Agent
-                      </h3>
-                      <p className="text-sm text-slate-600">
-                        {new Date(booking.accepted_at).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {booking.confirmed_at && (
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white">
-                        <svg
-                          className="w-5 h-5"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-slate-900">
-                        Booking Confirmed
-                      </h3>
-                      <p className="text-sm text-slate-600">
-                        {new Date(booking.confirmed_at).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {showPaymentButton && !showPaymentForm && (
-                <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <h3 className="font-semibold text-amber-900 mb-2 text-sm sm:text-base">
-                    {booking.status === "payment_failed"
-                      ? "Retry Payment"
-                      : "Action Required: Pay Deposit"}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-amber-700 mb-2">
-                    {booking.status === "payment_failed"
-                      ? "Your previous payment failed. Please try again to secure your spot."
-                      : booking.status === "pending"
-                      ? "Pay your deposit to secure your spot. The agent will review your booking once payment is confirmed."
-                      : "To submit your booking request, please complete the deposit payment."}
-                  </p>
-                  <p className="text-base sm:text-lg font-bold text-amber-900 mb-3 sm:mb-4">
-                    Deposit: RM{depositAmount}
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                    <Button
-                      onClick={() => setShowPaymentForm(true)}
-                      className="bg-amber-600 hover:bg-amber-700 w-full sm:w-auto"
-                    >
-                      {booking.status === "payment_failed"
-                        ? "Retry Payment"
-                        : "Pay Deposit Now"}
-                    </Button>
-                    {["pending", "pending_payment", "payment_failed"].includes(
-                      booking.status
-                    ) && (
-                      <Button
-                        variant="outline"
-                        onClick={handleCancelBooking}
-                        className="text-red-600 hover:text-red-700 w-full sm:w-auto"
-                      >
-                        Cancel Booking
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
+            <CardContent className="p-4 sm:p-6 pt-2 sm:pt-3">
+              <PaymentTimeline
+                milestones={paymentMilestones}
+                onPayNow={
+                  showPaymentButton ? () => setShowPaymentForm(true) : undefined
+                }
+              />
 
               {showPaymentForm && (
-                <div className="mt-6">
+                <div className="mt-6 pt-6 border-t">
                   <PaymentForm
                     bookingId={booking.id}
                     amount={depositAmount}
@@ -515,230 +325,94 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
                 </div>
               )}
 
-              {booking.status === "accepted" && isTraveler && (
-                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                      <svg
-                        className="w-6 h-6 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-green-900 mb-1">
-                        🎉 Your Spot is Confirmed!
-                      </h3>
-                      <p className="text-sm text-green-700 mb-3">
-                        Great news! The agent has accepted your booking request.
-                        They will be in touch with you soon with more details
-                        about the trip.
-                      </p>
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          (window.location.href = booking.conversation_id
-                            ? `/inbox?conversation=${booking.conversation_id}`
-                            : "/inbox")
-                        }
-                        className="border-green-300 text-green-700 hover:bg-green-100"
-                      >
-                        <svg
-                          className="w-4 h-4 mr-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                          />
-                        </svg>
-                        Chat with Agent
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {booking.status === "accepted" && !isTraveler && (
-                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                      <svg
-                        className="w-6 h-6 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-green-900 mb-1">
-                        🎉 Congrats! You Have a New Traveler!
-                      </h3>
-                      <p className="text-sm text-green-700 mb-3">
-                        Great news!{" "}
-                        {booking.traveler?.full_name || "A traveler"} is now on
-                        board for this trip. Keep in touch with them through
-                        your existing chat to share trip details, itinerary
-                        updates, and answer any questions they may have.
-                      </p>
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          (window.location.href = booking.conversation_id
-                            ? `/inbox?conversation=${booking.conversation_id}`
-                            : "/inbox")
-                        }
-                        className="border-green-300 text-green-700 hover:bg-green-100"
-                      >
-                        <svg
-                          className="w-4 h-4 mr-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                          />
-                        </svg>
-                        Chat with Traveler
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {booking.status === "payment_processing" && (
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <svg
-                      className="animate-spin h-5 w-5 text-blue-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    <div>
-                      <h3 className="font-semibold text-blue-900">
-                        Processing Payment
-                      </h3>
-                      <p className="text-sm text-blue-700">
-                        Please wait while we process your payment...
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {booking.status === "pending_review" && (
-                <div className="mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <svg
-                      className="h-6 w-6 text-purple-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <div>
-                      <h3 className="font-semibold text-purple-900">
-                        Payment Received!
-                      </h3>
-                      <p className="text-sm text-purple-700">
-                        The agent will review your booking request shortly.
-                      </p>
-                    </div>
-                  </div>
-                  {booking.payment_status && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <span className="text-sm text-purple-700">
-                        Payment Status:
-                      </span>
-                      <PaymentStatusBadge status={booking.payment_status} />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {booking.status === "joined" && (
-                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <svg
-                      className="h-6 w-6 text-green-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    <div>
-                      <h3 className="font-semibold text-green-900">
-                        You're In!
-                      </h3>
-                      <p className="text-sm text-green-700">
-                        Welcome to the group! Get ready for your adventure.
-                      </p>
-                    </div>
-                  </div>
+              {showPaymentButton && !showPaymentForm && (
+                <div className="mt-4 pt-4 border-t flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelBooking}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full sm:w-auto"
+                    size="sm"
+                  >
+                    Cancel Booking
+                  </Button>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Your Notes */}
+          {/* Booking Timeline Card */}
+          <Card className="border-slate-200">
+            <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
+              <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 text-blue-600" />
+                Booking Timeline
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-2 sm:pt-3">
+              <div className="space-y-4">
+                {/* Request Submitted */}
+                <TimelineItem
+                  completed
+                  title="Request Submitted"
+                  date={new Date(booking.requested_at).toLocaleString()}
+                  showLine={true}
+                />
+
+                {/* Accepted */}
+                {booking.accepted_at ? (
+                  <TimelineItem
+                    completed
+                    title="Accepted by Agent"
+                    date={new Date(booking.accepted_at).toLocaleString()}
+                    showLine={!!booking.confirmed_at}
+                  />
+                ) : (
+                  <TimelineItem
+                    title="Agent Review"
+                    date="Pending"
+                    pending
+                    showLine={true}
+                  />
+                )}
+
+                {/* Confirmed */}
+                {booking.confirmed_at ? (
+                  <TimelineItem
+                    completed
+                    title="Booking Confirmed"
+                    date={new Date(booking.confirmed_at).toLocaleString()}
+                    showLine={false}
+                  />
+                ) : (
+                  <TimelineItem
+                    title="Trip Confirmed"
+                    date="Pending"
+                    pending
+                    showLine={false}
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Status-specific Cards */}
+          <StatusCard
+            booking={booking}
+            isTraveler={isTraveler}
+            goToChat={goToChat}
+          />
+
+          {/* Traveler Notes */}
           {booking.traveler_notes && (
-            <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-lg sm:text-xl">
-                  Your Message
+            <Card className="border-slate-200">
+              <CardHeader className="p-4 sm:p-6 pb-2 sm:pb-3">
+                <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5 text-slate-600" />
+                  Your Message to Agent
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-                <p className="text-sm sm:text-base text-slate-700">
+              <CardContent className="p-4 sm:p-6 pt-2 sm:pt-3">
+                <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg">
                   {booking.traveler_notes}
                 </p>
               </CardContent>
@@ -747,126 +421,188 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-4 sm:space-y-6 order-1 lg:order-2">
-          {/* Travel Group Info */}
+        <div className="space-y-4 sm:space-y-6">
+          {/* Trip Countdown - Desktop */}
+          {tripStartDate && (
+            <div className="hidden lg:block">
+              <TripCountdown startDate={tripStartDate} />
+            </div>
+          )}
+
+          {/* Trip Details */}
           {booking.listing && (
-            <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-lg sm:text-xl">
-                  Travel Group
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+            <Card className="border-slate-200 overflow-hidden">
+              <div className="relative">
                 <img
                   src={
                     booking.listing.first_image_url ||
-                    `https://picsum.photos/seed/${booking.listing.id}/400/300`
+                    `https://picsum.photos/seed/${booking.listing.id}/400/200`
                   }
                   alt={booking.listing.title}
-                  className="w-full h-36 sm:h-48 object-cover rounded-lg mb-3 sm:mb-4"
+                  className="w-full h-32 sm:h-40 object-cover"
                 />
-                <h3 className="font-bold text-base sm:text-lg mb-2">
-                  {booking.listing.title}
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-600 mb-2">
-                  {booking.listing.destination}
-                </p>
-                {booking.listing.start_date && (
-                  <p className="text-xs sm:text-sm text-slate-600">
-                    <strong>Date:</strong>{" "}
-                    {new Date(booking.listing.start_date).toLocaleDateString()}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3">
+                  <h3 className="font-bold text-white text-sm sm:text-base line-clamp-1">
+                    {booking.listing.title}
+                  </h3>
+                  <p className="text-white/90 text-xs sm:text-sm flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {booking.listing.destination}
                   </p>
-                )}
-                {booking.listing.price_min && (
-                  <p className="text-xs sm:text-sm text-slate-600">
-                    <strong>Price:</strong> RM{booking.listing.price_min} per
-                    person
-                  </p>
-                )}
+                </div>
+              </div>
+              <CardContent className="p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <TripInfoCard
+                    icon={<Calendar className="w-4 h-4" />}
+                    label="Departure"
+                    value={
+                      tripStartDate
+                        ? tripStartDate.toLocaleDateString("en-MY", {
+                            day: "numeric",
+                            month: "short",
+                          })
+                        : "TBA"
+                    }
+                  />
+                  <TripInfoCard
+                    icon={<Clock className="w-4 h-4" />}
+                    label="Duration"
+                    value={tripDuration || "TBA"}
+                  />
+                </div>
+                <TripInfoCard
+                  icon={<Users className="w-4 h-4" />}
+                  label="Group Size"
+                  value={`${
+                    booking.listing.max_group_size || 10
+                  } travelers max`}
+                />
                 <Button
                   variant="outline"
-                  className="w-full mt-3 sm:mt-4 text-sm"
+                  className="w-full text-sm"
                   size="sm"
                   onClick={() =>
                     (window.location.href = `/travel/${booking.listing.id}`)
                   }
                 >
-                  View Details
+                  View Full Trip Details
                 </Button>
               </CardContent>
             </Card>
           )}
 
-          {/* Deposit Calculation */}
+          {/* Pre-Trip Checklist */}
           {isTraveler &&
-            [
-              "pending",
-              "pending_payment",
-              "payment_failed",
-              "accepted",
-              "hold",
-            ].includes(booking.status) && (
-              <Card>
-                <CardHeader className="p-4 sm:p-6">
-                  <CardTitle className="text-lg sm:text-xl">
-                    Payment Summary
+            ["accepted", "confirmed", "joined", "pending_review"].includes(
+              booking.status
+            ) &&
+            tripStartDate && (
+              <Card className="border-slate-200">
+                <CardHeader className="p-4 pb-2">
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <span>✅</span>
+                    Pre-Trip Checklist
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-                  <div className="space-y-2 sm:space-y-3">
-                    <div className="flex justify-between text-xs sm:text-sm">
-                      <span className="text-slate-600">
-                        Trip Price (per person)
-                      </span>
-                      <span className="font-medium">
-                        RM{booking.listing?.price_min || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs sm:text-sm">
-                      <span className="text-slate-600">Deposit Rate</span>
-                      <span className="font-medium">20%</span>
-                    </div>
-                    <div className="border-t pt-2 sm:pt-3">
-                      <div className="flex justify-between">
-                        <span className="font-semibold text-slate-900 text-sm sm:text-base">
-                          Deposit Required
-                        </span>
-                        <span className="font-bold text-base sm:text-lg text-amber-600">
-                          RM{depositAmount}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-[10px] sm:text-xs text-slate-500 mt-2">
-                      The deposit secures your spot. The remaining balance will
-                      be due before the trip.
-                    </p>
-                  </div>
+                <CardContent className="p-4 pt-2">
+                  <PreTripChecklist tripDate={tripStartDate} />
                 </CardContent>
               </Card>
             )}
 
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-lg sm:text-xl">
-                Quick Actions
+          {/* Cancellation Policy */}
+          {booking.listing?.cancellation_policy && (
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-amber-800">
+                  <ShieldAlert className="w-5 h-5" />
+                  Cancellation Policy
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-2">
+                <p className="text-sm text-amber-900 leading-relaxed">
+                  {booking.listing.cancellation_policy}
+                </p>
+                <div className="mt-3 pt-3 border-t border-amber-200">
+                  <p className="text-xs text-amber-700">
+                    💡 Please review this policy before making any changes to
+                    your booking.
+                  </p>
+                </div>
+                {isTraveler &&
+                  !["cancelled", "rejected"].includes(booking.status) && (
+                    <div className="mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                        onClick={handleCancelBooking}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Cancel My Booking
+                      </Button>
+                    </div>
+                  )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Need Help */}
+          <Card className="border-slate-200">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Phone className="w-5 h-5 text-slate-600" />
+                Need Help?
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 space-y-2">
+            <CardContent className="p-4 pt-2 space-y-3">
               <Button
                 variant="outline"
-                className="w-full text-sm"
+                className="w-full justify-start text-sm"
                 size="sm"
+                onClick={goToChat}
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Message {isTraveler ? "Agent" : "Traveler"}
+              </Button>
+              <p className="text-xs text-slate-500 text-center">
+                For urgent matters, use the chat feature
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Quick Links */}
+          <Card className="border-slate-200">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-base sm:text-lg">
+                Quick Links
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-2 space-y-2">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-sm h-9"
                 onClick={() => (window.location.href = "/explore")}
               >
+                <Search className="w-4 h-4 mr-2 text-slate-500" />
                 Browse More Trips
               </Button>
               <Button
-                variant="outline"
-                className="w-full text-sm"
-                size="sm"
+                variant="ghost"
+                className="w-full justify-start text-sm h-9"
+                onClick={() => (window.location.href = "/travel-bookings")}
+              >
+                <ClipboardList className="w-4 h-4 mr-2 text-slate-500" />
+                My Bookings
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-sm h-9"
                 onClick={() => (window.location.href = "/profile")}
               >
+                <User className="w-4 h-4 mr-2 text-slate-500" />
                 My Profile
               </Button>
             </CardContent>
@@ -874,7 +610,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         </div>
       </div>
 
-      {/* Success/Error Dialog */}
+      {/* Dialogs */}
       <Dialog
         open={dialogState.type === "success" || dialogState.type === "error"}
         onOpenChange={(open) => !open && closeDialog()}
@@ -902,36 +638,259 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Cancel Confirmation Dialog */}
       <Dialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-amber-600">
-              Cancel Booking?
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5" />
+              Cancel Your Booking?
             </DialogTitle>
-            <DialogDescription className="text-slate-600 pt-2">
-              Are you sure you want to cancel this booking? If you have made a
-              payment, a refund will be initiated.
+            <DialogDescription asChild>
+              <div className="text-slate-600 pt-2 space-y-3">
+                <p>Are you sure you want to cancel this booking? This means:</p>
+                <ul className="text-sm space-y-2 list-none">
+                  <li className="flex items-start gap-2">
+                    <X className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                    <span>
+                      You will <strong>give up your spot</strong> in this travel
+                      group
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <X className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                    <span>Your spot may be taken by another traveler</span>
+                  </li>
+                  {booking?.payment_status === "paid" && (
+                    <li className="flex items-start gap-2">
+                      <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <span>
+                        Refund will be processed according to the cancellation
+                        policy
+                      </span>
+                    </li>
+                  )}
+                </ul>
+                {booking?.listing?.cancellation_policy && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
+                    <p className="text-xs font-medium text-amber-800 mb-1">
+                      Cancellation Policy:
+                    </p>
+                    <p className="text-xs text-amber-700">
+                      {booking.listing.cancellation_policy}
+                    </p>
+                  </div>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
             <Button
               variant="outline"
               onClick={() => setShowCancelConfirm(false)}
               disabled={isProcessing}
             >
-              Keep Booking
+              Keep My Booking
             </Button>
             <Button
               variant="destructive"
               onClick={confirmCancelBooking}
               disabled={isProcessing}
             >
-              {isProcessing ? "Cancelling..." : "Yes, Cancel"}
+              {isProcessing ? "Cancelling..." : "Yes, Cancel Booking"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
+}
+
+// Timeline Item Component
+function TimelineItem({
+  completed,
+  pending,
+  title,
+  date,
+  showLine,
+}: {
+  completed?: boolean;
+  pending?: boolean;
+  title: string;
+  date: string;
+  showLine: boolean;
+}) {
+  return (
+    <div className="flex gap-4">
+      <div className="flex flex-col items-center">
+        <div
+          className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            completed
+              ? "bg-green-500 text-white"
+              : "bg-slate-200 text-slate-400"
+          }`}
+        >
+          {completed ? (
+            <Check className="w-5 h-5" />
+          ) : (
+            <span className="text-sm">•</span>
+          )}
+        </div>
+        {showLine && <div className="w-0.5 h-12 bg-slate-200" />}
+      </div>
+      <div className="flex-1 pb-2">
+        <h3
+          className={`font-semibold text-sm sm:text-base ${
+            pending ? "text-slate-400" : "text-slate-900"
+          }`}
+        >
+          {title}
+        </h3>
+        <p
+          className={`text-xs sm:text-sm ${
+            pending ? "text-slate-400" : "text-slate-600"
+          }`}
+        >
+          {date}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Status-specific Card Component
+function StatusCard({
+  booking,
+  isTraveler,
+  goToChat,
+}: {
+  booking: any;
+  isTraveler: boolean;
+  goToChat: () => void;
+}) {
+  if (booking.status === "accepted" && isTraveler) {
+    return (
+      <Card className="border-green-200 bg-green-50">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+              <Check className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-green-900 mb-1">
+                🎉 Your Spot is Confirmed!
+              </h3>
+              <p className="text-sm text-green-700 mb-3">
+                The agent has accepted your booking. They will share more
+                details about the trip soon.
+              </p>
+              <Button
+                variant="outline"
+                onClick={goToChat}
+                className="border-green-300 text-green-700 hover:bg-green-100"
+                size="sm"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Chat with Agent
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (booking.status === "accepted" && !isTraveler) {
+    return (
+      <Card className="border-green-200 bg-green-50">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+              <UserPlus className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-green-900 mb-1">
+                🎉 New Traveler Joined!
+              </h3>
+              <p className="text-sm text-green-700 mb-3">
+                {booking.traveler?.full_name || "A traveler"} is now on board.
+                Keep in touch through chat.
+              </p>
+              <Button
+                variant="outline"
+                onClick={goToChat}
+                className="border-green-300 text-green-700 hover:bg-green-100"
+                size="sm"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Chat with Traveler
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (booking.status === "payment_processing") {
+    return (
+      <Card className="border-blue-200 bg-blue-50">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+            <div>
+              <h3 className="font-semibold text-blue-900">
+                Processing Payment
+              </h3>
+              <p className="text-sm text-blue-700">
+                Please wait while we process your payment...
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (booking.status === "pending_review") {
+    return (
+      <Card className="border-purple-200 bg-purple-50">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center gap-3">
+            <Check className="h-6 w-6 text-purple-600" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-purple-900">
+                Payment Received!
+              </h3>
+              <p className="text-sm text-purple-700">
+                The agent will review your booking request shortly.
+              </p>
+            </div>
+            {booking.payment_status && (
+              <PaymentStatusBadge status={booking.payment_status} />
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (booking.status === "joined") {
+    return (
+      <Card className="border-green-200 bg-green-50">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center gap-3">
+            <Check className="h-6 w-6 text-green-600" />
+            <div>
+              <h3 className="font-semibold text-green-900">🎉 You're In!</h3>
+              <p className="text-sm text-green-700">
+                Welcome to the group! Get ready for your adventure.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return null;
 }

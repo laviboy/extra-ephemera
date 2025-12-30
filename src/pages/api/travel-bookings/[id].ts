@@ -47,7 +47,11 @@ export const GET: APIRoute = async ({ params, request }) => {
           creator_id,
           destination,
           price_min,
-          price_max
+          price_max,
+          start_date,
+          end_date,
+          cancellation_policy,
+          max_group_size
         )
       `
       )
