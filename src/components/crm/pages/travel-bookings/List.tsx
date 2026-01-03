@@ -253,18 +253,28 @@ export function TravelBookingsList() {
       ? bookings.filter((b) =>
           ["pending", "pending_payment"].includes(b.status)
         )
+      : filter === "pending_review"
+      ? bookings.filter(
+          (b) =>
+            b.status === "pending_review" ||
+            (b.status === "pending" && b.deposit_paid)
+        )
       : filter === "confirmed"
-      ? bookings.filter((b) => ["confirmed", "joined"].includes(b.status))
+      ? bookings.filter((b) =>
+          ["confirmed", "joined", "accepted"].includes(b.status)
+        )
       : bookings.filter((b) => b.status === filter);
 
-  const pendingCount = bookings.filter((b) =>
-    ["pending", "pending_payment"].includes(b.status)
+  const pendingCount = bookings.filter(
+    (b) => ["pending", "pending_payment"].includes(b.status) && !b.deposit_paid
   ).length;
   const pendingReviewCount = bookings.filter(
-    (b) => b.status === "pending_review"
+    (b) =>
+      b.status === "pending_review" ||
+      (b.status === "pending" && b.deposit_paid)
   ).length;
   const confirmedCount = bookings.filter((b) =>
-    ["confirmed", "joined"].includes(b.status)
+    ["confirmed", "joined", "accepted"].includes(b.status)
   ).length;
 
   if (isLoading) {
@@ -301,7 +311,7 @@ export function TravelBookingsList() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Awaiting Payment</CardDescription>
+            <CardDescription>Awaiting Deposit</CardDescription>
             <CardTitle className="text-3xl text-yellow-600">
               {pendingCount}
             </CardTitle>
@@ -309,7 +319,7 @@ export function TravelBookingsList() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Paid - Review</CardDescription>
+            <CardDescription>Needs Review</CardDescription>
             <CardTitle className="text-3xl text-purple-600">
               {pendingReviewCount}
             </CardTitle>
@@ -330,10 +340,10 @@ export function TravelBookingsList() {
         <TabsList>
           <TabsTrigger value="all">All ({bookings.length})</TabsTrigger>
           <TabsTrigger value="pending">
-            Awaiting Payment ({pendingCount})
+            Awaiting Deposit ({pendingCount})
           </TabsTrigger>
           <TabsTrigger value="pending_review">
-            Paid - Review ({pendingReviewCount})
+            Needs Review ({pendingReviewCount})
           </TabsTrigger>
           <TabsTrigger value="confirmed">
             Confirmed ({confirmedCount})
@@ -409,6 +419,17 @@ export function TravelBookingsList() {
                               </Badge>
                             </div>
                           )}
+                          {booking.deposit_paid &&
+                            booking.status === "pending" && (
+                              <div className="col-span-2">
+                                <span className="text-slate-600">
+                                  Payment Status:
+                                </span>
+                                <Badge className="ml-2 bg-green-100 text-green-800">
+                                  ✓ Deposit Paid - Ready for Review
+                                </Badge>
+                              </div>
+                            )}
                         </div>
 
                         {booking.traveler_notes && (
@@ -450,9 +471,30 @@ export function TravelBookingsList() {
                             </Button>
                           )}
                           {booking.status === "pending" && (
-                            <p className="text-sm text-amber-600 italic">
-                              Waiting for traveler to pay deposit...
-                            </p>
+                            <>
+                              {booking.deposit_paid ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAccept(booking.id)}
+                                    className="bg-green-600 hover:bg-green-700"
+                                  >
+                                    Accept Booking
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleReject(booking.id)}
+                                  >
+                                    Reject
+                                  </Button>
+                                </>
+                              ) : (
+                                <p className="text-sm text-amber-600 italic">
+                                  Waiting for traveler to pay deposit...
+                                </p>
+                              )}
+                            </>
                           )}
 
                           {booking.status === "pending_review" && (

@@ -195,6 +195,19 @@ export const PATCH: APIRoute = async ({ params, request }) => {
         );
       }
 
+      // If deposit is paid, only agent can update status to accepted
+      if (newStatus === "accepted" && booking.deposit_paid && !isAgent) {
+        return new Response(
+          JSON.stringify({
+            error: "Only agent can accept bookings with paid deposits",
+          }),
+          {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
       // Validate status transitions based on payment status
       if (newStatus === "joined" && booking.payment_status !== "paid") {
         return new Response(
